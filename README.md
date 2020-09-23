@@ -4,7 +4,7 @@ Feature selection method based on repeated elastic net
 
 # Example
 
-``Example"_ in a Jupyter Notebook how to use RENT.
+``Example``_ in a Jupyter Notebook how to use RENT.
 
 .. _Example: https://github.com/NMBU-Data-Science/RENT/blob/master/src/RENT/Example.ipynb
 

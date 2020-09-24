@@ -744,7 +744,7 @@ class RENT:
             
             summary_df.columns.name ='C={0}, l1={1}'.format(C,l1_ratio)
                 
-            return(summary_df, self.reduced_data, sel_var)  
+            return(summary_df, self.reduced_data, sel_var[0])  
     
     def get_spec_weights_dict(self, C, l1_ratio):
         """

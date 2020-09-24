@@ -13,9 +13,6 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.linear_model import LogisticRegression as LR
 from sklearn.metrics import matthews_corrcoef
 
-my_reg_params = [0.1,1,10]
-my_l1_params = [0, 0.75, 0.9, 1]
-testsize_range = (0.25, 0.25)
 
 def parameter_selection(data, 
                         labels,
@@ -88,16 +85,11 @@ def parameter_selection(data,
                             
             scores_df.loc[l1,reg] = np.nanmean(scores)
             zeroes_df.loc[l1,reg] = np.nanmean(zeroes)
-        
-        #return(scores_df, zeroes_df)
+
     
     Parallel(n_jobs=-1, verbose=0, backend="threading")(
          map(delayed(run_parallel), my_l1_params))  
-    
-    print(scores_df)
-    #return(scores_df, zeroes_df)
-    
-    print('hallo')
+
     normed_scores = (scores_df-np.nanmin(scores_df.values))\
     /(np.nanmax(scores_df.values)-np.nanmin(scores_df.values))
     normed_zeroes = (zeroes_df-np.nanmin(zeroes_df.values))\

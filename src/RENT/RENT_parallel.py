@@ -709,7 +709,7 @@ class RENT:
                                  t_test])
             
             summary_df = pd.DataFrame(summary)
-            summary_df.index = ['perc non-zero (C={0})'.format(C),
+            summary_df.index = ['perc non-zero',
                                 'sig_criterium',
                                 't_test']
             
@@ -741,7 +741,6 @@ class RENT:
             [self.feat_names[ind] for ind in sel_var[0]]
 
             self.reduced_data = self.data[select_feat_names]
-            self.spec_summary_df = summary_df
             
             summary_df.columns.name ='C={0}, l1={1}'.format(C,l1_ratio)
                 

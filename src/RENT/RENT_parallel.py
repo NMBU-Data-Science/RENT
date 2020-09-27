@@ -968,7 +968,7 @@ class RENT:
                 bins = math.ceil(2*len(data)**(1./3.))
             if binning == "sturges":
                 bins = math.ceil(math.log(len(data),2)) + 1
-            sns.set(font_scale=2)
+            sns.set(font_scale=0.5)
             sns.set_style("white")
             ax=sns.distplot(data, 
                             bins=bins, 

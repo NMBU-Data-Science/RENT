@@ -4,3 +4,4 @@ src/RENT/.ipynb_checkpoints/Example-checkpoint.ipynb
 src/RENT/.ipynb_checkpoints/Example-checkpoint.ipynb
 src/RENT/__pycache__/parameter_selection.cpython-38.pyc
 src/RENT/__pycache__/RENT_parallel.cpython-38.pyc
+*.pyc

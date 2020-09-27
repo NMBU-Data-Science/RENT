@@ -912,7 +912,7 @@ class RENT:
         # create confusion matrix coloring
         label_matrix = self.incorrect_labels
         col = np.empty((np.shape(label_matrix)[0],), dtype=np.dtype('U100'))
-        # neutral patients have an incorrectly labeled rate between 25 and 75 %
+        # neutral objects have an incorrectly labeled rate between 25 and 75 %
         # negative = 0
         # positive = 1
         col[:] = "neutral"
@@ -937,17 +937,17 @@ class RENT:
                     ,hue=block_scores.iloc[:,-1])
         
 
-    def pred_proba_plot(self, C, l1_ratio, patient_id,
+    def pred_proba_plot(self, C, l1_ratio, object_id,
                         binning="auto", lower=0, upper=1, kde=False, 
                         norm_hist=False):
         """
         This method produces histogram/density plots of the predicted 
-        probabilities for patients.
+        probabilities for objects.
         
         INPUT
         -----      
         C: regression parameter
-        patient_id: list of patients
+        object_id: list of objects
         binning: binning procedure (auto, rice, sturges; see 
         https://www.answerminer.com/blog/binning-guide-ideal-histogram)
         ATTENTION: must run method pre_proba beforehand
@@ -958,9 +958,9 @@ class RENT:
         """
         # different binning schemata
         # https://www.answerminer.com/blog/binning-guide-ideal-histogram
-        for patient in patient_id:
+        for obj in object_id:
             fig, ax = plt.subplots()
-            data = self.rdict[C, l1_ratio].loc[patient,:].dropna()
+            data = self.rdict[C, l1_ratio].loc[obj,:].dropna()
 
             if binning == "auto":
                 bins = None
@@ -968,8 +968,9 @@ class RENT:
                 bins = math.ceil(2*len(data)**(1./3.))
             if binning == "sturges":
                 bins = math.ceil(math.log(len(data),2)) + 1
-                
-            ax=sns.distplot(data, axlabel ="ProbC1", 
+            sns.set(font_scale=2)
+            sns.set_style("white")
+            ax=sns.distplot(data, 
                             bins=bins, 
                             color = 'darkblue',
                             hist_kws={'edgecolor':'darkblue'},
@@ -978,13 +979,15 @@ class RENT:
                             norm_hist=norm_hist)
             ax.set(xlim=(lower, upper))
             ax.axvline(x=0.5, color='k', linestyle='--', label ="Threshold")
-            ax.legend()
+            ax.legend(fontsize=10)
             if norm_hist == False:
-                ax.set_ylabel('absolute frequencies')
+                ax.set_ylabel('absolute frequencies', fontsize=10)
+                ax.set_xlabel('ProbC1', fontsize=10)
             else:
                 ax.set_ylabel('frequencies')
-            ax.set_title('Patient: {0}, True class: {1}'.format(patient, \
-                         self.target[patient]))
+                ax.set_xlabel('ProbC1')
+            ax.set_title('Object: {0}, True class: {1}'.format(obj, \
+                         self.target[obj]), fontsize=10)
             
     def feasibility_study(self, test_data, test_labels, features, feature_size):
         # FS1

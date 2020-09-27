@@ -25,5 +25,5 @@ hoggorm >= 0.13.3
 
 A webhook to ReadTheDocs will be established soon. Until then, please see the docstrings inside the code. There you will find information on input parameters, etc.
 
-
+Documentation at ReadTheDocs (no webhook yet): https://rent.readthedocs.io/en/latest/
 

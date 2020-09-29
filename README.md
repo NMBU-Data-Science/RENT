@@ -7,8 +7,6 @@ a unique and randomly selected subset from the full training data. From these mo
 feature that contain rich information on the stability of feature selection and from which several adjustable classification criteria may be
 defined.
 
-More details are provided here: [RENT - Repeated Elastic Net Technique for Feature Selection](https://arxiv.org/abs/2009.12780)
-
 # Example
 
 The following Jupyter notebook provides and [example](https://github.com/NMBU-Data-Science/RENT/blob/master/src/RENT/Example.ipynb) of how to use RENT.
@@ -27,5 +25,5 @@ hoggorm >= 0.13.3
 
 A webhook to ReadTheDocs will be established soon. Until then, please see the docstrings inside the code. There you will find information on input parameters, etc.
 
-Documentation at ReadTheDocs (no webhook yet): https://rent.readthedocs.io/en/latest/
+
 

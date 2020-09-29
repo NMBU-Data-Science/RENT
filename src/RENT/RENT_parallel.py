@@ -5,13 +5,6 @@ Created on Fri May  8 10:35:24 2020
 @author: ajenul
 """
 
-# -*- coding: utf-8 -*-
-"""
-Created on Fri May  1 13:14:31 2020
-
-@author: ajenul
-"""
-
 import hoggorm as ho
 import math
 import numpy as np
@@ -117,9 +110,9 @@ class RENT:
         
         # Check if data is dataframe and add index information
         if isinstance(data, pd.DataFrame):
-            self.indices=data.index
+            self.indices = data.index
         else:
-            self.indices=list(range(data.shape[0]))
+            self.indices = list(range(data.shape[0]))
 
 
         # If no feature names are given, then make some
@@ -152,7 +145,7 @@ class RENT:
             flist.extend(polynom_feat_names)
             self.feat_names = flist
             self.data = pd.DataFrame(self.data)
-            self.data.index=self.indices
+            self.data.index = self.indices
             self.data.columns = self.feat_names
         
         elif poly == 'ON_only_interactions':
@@ -217,6 +210,7 @@ class RENT:
                 
                 self.train_sets.append(X_train)
                 self.X_test = X_test
+                
                 # Initialise standard scaler and compute mean and STD from 
                 # training data
                 sc = StandardScaler()
@@ -228,7 +222,7 @@ class RENT:
                 X_train_std = sc.transform(X_train)
                 X_test_std = sc.transform(X_test)
                 if self.verbose > 0:
-                    print('l1 = ', l1,'C = ', C, ', TT split = ', tt_split)
+                    print('l1 = ', l1, 'C = ', C, ', TT split = ', tt_split)
 
                 if self.clf == 'logreg':
                     # Trian a logistic regreission model
@@ -250,7 +244,7 @@ class RENT:
                                     fit(X_train_std, y_train)
                 
                 elif self.clf == "RM":
-                    model = ElasticNet(alpha = 1/C, l1_ratio = l1,
+                    model = ElasticNet(alpha=1/C, l1_ratio=l1,
                                        max_iter=5000, random_state=0, \
                                        fit_intercept=False).\
                                        fit(X_train_std, y_train)
@@ -260,7 +254,7 @@ class RENT:
                 #print(logreg.coef_)
                 mod_coef = model.coef_
                 self.mcf = model.coef_
-                if len(np.shape(mod_coef)) ==1:
+                if len(np.shape(mod_coef)) == 1:
                     mod_coef = mod_coef.reshape(1, len(mod_coef))
                 self.weight_dict[(C, l1, tt_split)] = mod_coef
                 self.weight_list.append(mod_coef)
@@ -290,7 +284,7 @@ class RENT:
                     # metrics.
                     y_test_pred = model.predict(X_test_std)
                     sf = f1_score(y_test, y_test_pred)
-                    sf_inv = f1_score((1-y_test), (1-y_test_pred))
+                    sf_inv = f1_score((1 - y_test), (1 - y_test_pred))
                     sm = matthews_corrcoef(y_test, y_test_pred)
                     sa = model.score(X_test_std, y_test)
                     
@@ -353,7 +347,7 @@ class RENT:
                    
                     if k[0] == C and k[1] == l1:
                         vec.loc[self.p[k].index,count] = \
-                        self.p[k].iloc[:,1].values
+                        self.p[k].iloc[:, 1].values
                         count = count+1
                         
                 vec = vec.iloc[:, 1:]
@@ -432,6 +426,7 @@ class RENT:
 
         # timestop
         start = time.time()
+        
         # Call parallelization function 
         Parallel(n_jobs=-1, verbose=0, backend="threading")(
              map(delayed(self.run_parallel), range(self.num_tt)))  
@@ -460,8 +455,8 @@ class RENT:
                 for C in self.C:
                     arr = np.empty((0, 4), int)
                     for k in self.sc.keys():
-                        if k[0] == C and k[1] ==l1:
-                            arr = np.vstack((arr,self.sc[k]))
+                        if k[0] == C and k[1] == l1:
+                            arr = np.vstack((arr, self.sc[k]))
                             scores[(l1, C)] = np.transpose(pd.DataFrame(
                                     np.apply_along_axis(np.mean, 0, arr)))
                             scores[(l1, C)].columns =  \
@@ -696,7 +691,7 @@ class RENT:
             # t-statistic
             t_test = t.cdf(
                     abs(means / np.sqrt((stds**2)/len(spec_weight_list))), \
-           (len(spec_weight_list)-1))
+           (len(spec_weight_list) - 1))
             
             # Construct a dataframe thaw holds the results compted above
             summary = np.vstack([perc,
@@ -961,9 +956,9 @@ class RENT:
             if binning == "auto":
                 bins = None
             if binning == "rice":
-                bins = math.ceil(2*len(data)**(1./3.))
+                bins = math.ceil(2 * len(data) ** (1./3.))
             if binning == "sturges":
-                bins = math.ceil(math.log(len(data),2)) + 1
+                bins = math.ceil(math.log(len(data), 2)) + 1
             sns.set(font_scale=0.5)
             sns.set_style("white")
             ax=sns.distplot(data, 
@@ -994,8 +989,8 @@ class RENT:
                 range(0,len(self.data.columns)),
                                     feature_size)
             sc = StandardScaler()
-            traind = sc.fit_transform(self.data.iloc[:,columns])
-            testd = sc.transform(test_data.iloc[:,columns])
+            traind = sc.fit_transform(self.data.iloc[:, columns])
+            testd = sc.transform(test_data.iloc[:, columns])
             model = LogisticRegression(penalty='none', max_iter=8000, 
                                        solver="saga", random_state=0).\
                 fit(traind,self.target)

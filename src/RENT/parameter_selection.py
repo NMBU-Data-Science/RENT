@@ -16,8 +16,8 @@ from sklearn.metrics import matthews_corrcoef
 
 def parameter_selection(data, 
                         labels,
-                        my_reg_params, 
-                        my_l1_params, 
+                        C_params, 
+                        l1_params, 
                         n_splits, 
                         testsize_range):
 
@@ -31,8 +31,8 @@ def parameter_selection(data,
     
     skf = StratifiedKFold(n_splits=n_splits, random_state=0, shuffle=True)
     
-    scores_df = pd.DataFrame(np.zeros, index=my_l1_params, columns=my_reg_params)
-    zeroes_df = pd.DataFrame(np.zeros, index=my_l1_params, columns=my_reg_params)
+    scores_df = pd.DataFrame(np.zeros, index=l1_params, columns=C_params)
+    zeroes_df = pd.DataFrame(np.zeros, index=l1_params, columns=C_params)
     
     
     def run_parallel(l1):
@@ -50,15 +50,15 @@ def parameter_selection(data,
         """
     
         
-        for reg in my_reg_params:
+        for reg in C_params:
             scores = list()
             zeroes = list()
             for train, test in skf.split(data, labels):
                 
                 sc = StandardScaler()
-                train_data = sc.fit_transform(data.iloc[train,:])
+                train_data = sc.fit_transform(data.iloc[train, :])
                 train_target = labels[train]
-                test_data_split = sc.transform(data.iloc[test,:])
+                test_data_split = sc.transform(data.iloc[test, :])
                 test_target = labels[test]
                 sgd = LR(penalty="elasticnet", C=reg, solver="saga", 
                          l1_ratio=l1, random_state=0)
@@ -79,16 +79,16 @@ def parameter_selection(data,
                     test_data_1 = sc.transform(test_data_split[:, params])
                     model = LR(penalty='none', max_iter=8000, solver="saga",
                                random_state=0).\
-                            fit(train_data_1,train_target)
+                            fit(train_data_1, train_target)
                     scores.append(matthews_corrcoef(test_target, 
                                                     model.predict(test_data_1)))
                             
-            scores_df.loc[l1,reg] = np.nanmean(scores)
-            zeroes_df.loc[l1,reg] = np.nanmean(zeroes)
+            scores_df.loc[l1, reg] = np.nanmean(scores)
+            zeroes_df.loc[l1, reg] = np.nanmean(zeroes)
 
     
     Parallel(n_jobs=-1, verbose=0, backend="threading")(
-         map(delayed(run_parallel), my_l1_params))  
+         map(delayed(run_parallel), l1_params))  
 
     normed_scores = (scores_df-np.nanmin(scores_df.values))\
     /(np.nanmax(scores_df.values)-np.nanmin(scores_df.values))
@@ -96,7 +96,7 @@ def parameter_selection(data,
     /(np.nanmax(zeroes_df.values)-np.nanmin(zeroes_df.values))
     
     combi = (normed_scores ** -1 + normed_zeroes ** -1) ** -1
-    best_combi_row, best_combi_col  =np.where(combi == np.nanmax(combi.values))
+    best_combi_row, best_combi_col = np.where(combi == np.nanmax(combi.values))
     best_l1 = combi.index[np.nanmax(best_combi_row)]
     best_C = combi.columns[np.nanmin(best_combi_col)]
     

@@ -43,9 +43,10 @@ from scipy.stats import t
 class RENT:
     """
     This class carries out repeated elastic net feature selection on a given
-    binary classification dataset. Feature selection is done on multiple train 
-    test splits. The user can initiate interactions between features that are
-    included in the dataset and as such introduce non-linearities.
+    binary classification or regression dataset. Feature selection is done on
+    multiple train test splits. The user can initiate interactions between 
+    features that are included in the dataset and as such introduce 
+    non-linearities.
     
     INPUT
     -----
@@ -58,7 +59,7 @@ class RENT:
     
     scale: boolean, default=True
     
-    C list holding regularisation parameters for model
+    C: list holding regularisation parameters for model
     
     l1_ratios: list holding ratios between l1 and l2 penalty
     
@@ -78,10 +79,8 @@ class RENT:
                        'linearSVC' for linear support vector classifier
                        'RM' for linear regression
     
-    num_tt: int, number of unique train-test splits 
+    num_tt: int, number of unique train-test splits
 
-    num_w_init: int, number of unique weight intialisations                  
-    verbose: int, track running if greater than 
     
     OUTPUT
     ------
@@ -150,7 +149,7 @@ class RENT:
                     name = item[0] + '*' + item[1]
                 polynom_feat_names.append(name)
                 
-            flist=list(self.feat_names)
+            flist = list(self.feat_names)
             flist.extend(polynom_feat_names)
             self.feat_names = flist
             self.data = pd.DataFrame(self.data)
@@ -187,7 +186,7 @@ class RENT:
             print('Value for paramter "poly" not regcognised.')
 
 
-    def run_parallel(self,tt_split):
+    def run_parallel(self, tt_split):
         """
         Parallel computation of for loops. Parallelizes the number of tt_splits
         as this is the parameter with most varying values.
@@ -230,7 +229,7 @@ class RENT:
                 X_train_std = sc.transform(X_train)
                 X_test_std = sc.transform(X_test)
                 if self.verbose > 0:
-                    print('l1 = ',l1,'C = ', C, ', TT split = ', tt_split)
+                    print('l1 = ', l1,'C = ', C, ', TT split = ', tt_split)
 
                 if self.clf == 'logreg':
                     # Trian a logistic regreission model
@@ -300,7 +299,7 @@ class RENT:
                     self.sc[(l1, C, tt_split)] = sc
                 
                     sc_d = np.transpose(pd.DataFrame(sc))
-                    sc_d.columns = ['acc','f1','f1 inv', 'matthews']
+                    sc_d.columns = ['acc', 'f1', 'f1 inv', 'matthews']
                     sc_d.index = [str(C)]
                     self.sc_pd =self.sc_pd.append(sc_d)
                 
@@ -314,7 +313,7 @@ class RENT:
                 if(self.clf != "RM" and self.clf != "linSVC"):
                     res_df = pd.DataFrame({"y_test":y_test, \
                                            "y_pred": y_test_pred})
-                    res_df.index=X_test.index
+                    res_df.index = X_test.index
                 
                     # self.pred_dict[(l1, C, tt_split)] = res_df
                     
@@ -323,8 +322,8 @@ class RENT:
                     res_df = pd.DataFrame(
                             {"y_test":y_test, "y_pred": y_test_pred})
                     res_df.index=X_test.index
-                    self.pred_dict[(C,l1,tt_split)] = res_df
-                    self.p[(C,l1,tt_split)] = pd.DataFrame( \
+                    self.pred_dict[(C, l1, tt_split)] = res_df
+                    self.p[(C, l1, tt_split)] = pd.DataFrame( \
                            model.predict_proba(X_test_std), index = \
                                 X_test.index)
                     
@@ -358,7 +357,7 @@ class RENT:
                         self.p[k].iloc[:,1].values
                         count = count+1
                         
-                vec = vec.iloc[:,1:]
+                vec = vec.iloc[:, 1:]
                 
                 self.rdict[(C, l1)] = vec
         return self.rdict
@@ -366,7 +365,7 @@ class RENT:
     def run_analysis(self):
         """
         This method trains C * l1_ratio * num_tt models in total. The number
-        of models using the same hyperparamter is num_tt * num_w_init .
+        of models using the same hyperparamter is num_tt.
         For each model elastic net regularisation is applied for variable 
         selection.
          
@@ -390,10 +389,12 @@ class RENT:
         
         self.sc = {}
         self.sc_pd = pd.DataFrame(columns = ['acc','f1','f1 inv', 'matthews'])
+        
         # Initiate a dictionary holding computed performance metric for each
         # model. Kes are (C, num_tt, num_w_init)
         self.score_dict = {}
         self.score_all = {}
+        
         # Initiate a dictionary holding computed performance metric for each
         # model. Kes are (l1_ratios, C, num_tt, num_w_init)
         self.score_l1_dict = {}
@@ -458,14 +459,14 @@ class RENT:
             scores = {}
             for l1 in self.l1_ratios:
                 for C in self.C:
-                    arr = np.empty((0,4), int)
+                    arr = np.empty((0, 4), int)
                     for k in self.sc.keys():
                         if k[0] == C and k[1] ==l1:
                             arr = np.vstack((arr,self.sc[k]))
-                            scores[(l1,C)] = np.transpose(pd.DataFrame(
-                                    np.apply_along_axis(np.mean,0,arr)))
-                            scores[(l1,C)].columns =  \
-                            ['acc','f1','f1 inv', 'matthews']
+                            scores[(l1, C)] = np.transpose(pd.DataFrame(
+                                    np.apply_along_axis(np.mean, 0, arr)))
+                            scores[(l1, C)].columns =  \
+                            ['acc', 'f1', 'f1 inv', 'matthews']
             return scores
         else:
             result_list=[]
@@ -492,7 +493,7 @@ class RENT:
     
     def get_average_zero_features(self):
         """
-        Returns the average of features set to 0 for each pair (l1,C). 
+        Returns the average of features set to 0 for each pair (l1, C). 
         
         INPUT
         -----
@@ -508,14 +509,13 @@ class RENT:
             for C in self.C:
                 count=0
                 for tt_split in range(self.num_tt):
-
-                        
+        
                     nz = \
                     len(np.where(pd.DataFrame(self.weight_dict[(C, \
                                                                 l1,\
                                                                 tt_split)\
 ])==0)[0])
-                    count = count + nz/len(self.feat_names)
+                    count = count + nz / len(self.feat_names)
                 count = count / (self.num_tt)
                 result_list.loc[l1, C] = count
         return result_list
@@ -592,10 +592,10 @@ class RENT:
         ------
         <pandas dataframe>
             A dictionary holding score of each computed model.
-            Dictionary key: (C, num_tt, num_w_init)
+            Dictionary key: (C, num_tt)
         """
         
-        if self.scoring =="all":
+        if self.scoring == "all":
             print("Has to be adjusted for the scoring=all case")
         else:
             self.score_arr = np.vstack(self.score_list)
@@ -621,23 +621,19 @@ class RENT:
         -----
         C: <int> values for regularisation paramter
         
-        cutoff_perc: <int> or <float> 
+        tau_1: <int> or <float> 
             Cutoff critera for feature selection. Minimum Frequency of how 
             often a feature must have been selected across all models
             for given regularisation parameter. Choose value between 0 and 
             1 (in %).
         
-        cutoff_means_ratio: <float>
+        tau_2: <float>
             Cutoff criteria for feature selection. For a feature to be selected
             criteria 2 must be higher than cutoff_means_ratio.
         
-        cutoff_mean_std_ratio: <float>
+        tau_3: <float>
             Cutoff criteria for feature selection. For a feature to be selected
             criteria 3 must be higher than cutoff_mean_std_ratio.
-        feature_size: <int>: number of features that shall be seleted (criteria
-                                                            must be formualted)
-        sel_approach: "old" or "new" dependent on old criteria or new criteria
-        with sigmoid function and t-test
             
         
         OUTPUT
@@ -742,8 +738,12 @@ class RENT:
 
             self.reduced_data = self.data[select_feat_names]
             
+<<<<<<< HEAD
             summary_df.columns.name ='C={0}, l1={1}'.format(C,l1_ratio)
             self.sel_var = sel_var[0]
+=======
+            summary_df.columns.name ='C={0}, l1={1}'.format(C, l1_ratio)
+>>>>>>> 1265ff8420228727723edc0a695863e8026e2f2b
                 
             return(summary_df, self.reduced_data, self.sel_var)  
     
@@ -913,29 +913,30 @@ class RENT:
         # create confusion matrix coloring
         label_matrix = self.incorrect_labels.copy()
         col = np.empty((np.shape(label_matrix)[0],), dtype=np.dtype('U100'))
+        
         # neutral objects have an incorrectly labeled rate between 25 and 75 %
         # negative = 0
         # positive = 1
         col[:] = "neutral"
-        col[np.where((label_matrix['perc incorrect']<=25) & \
+        col[np.where((label_matrix['perc incorrect'] <= 25) & \
                      (label_matrix['class'] == 0))[0]] = 'TN' 
-        col[np.where((label_matrix['perc incorrect']<=25) & \
+        col[np.where((label_matrix['perc incorrect'] <= 25) & \
                      (label_matrix['class'] == 1))[0]] = 'TP'
-        col[np.where((label_matrix['perc incorrect']>=75) & \
+        col[np.where((label_matrix['perc incorrect'] >= 75) & \
                      (label_matrix['class'] == 0))[0]] = 'FP'
-        col[np.where((label_matrix['perc incorrect']>=75) & \
+        col[np.where((label_matrix['perc incorrect'] >= 75) & \
                      (label_matrix['class'] == 1))[0]] = 'FN'
         
         # add column to label_matrix and sort it to guarantee constant plot 
         # colors through different plots
         label_matrix['coloring'] = col
-        block_scores = block_scores.merge(label_matrix.iloc[:,-1], \
-                                          left_index=True, right_index =True)
+        block_scores = block_scores.merge(label_matrix.iloc[:, -1], \
+                                          left_index=True, right_index=True)
         block_scores = block_scores.sort_values(by="coloring")
         self.xx = block_scores
         #sns relplot
-        sns.relplot(x=x_lab,y=y_lab,data=block_scores\
-                    ,hue=block_scores.iloc[:,-1])
+        sns.relplot(x=x_lab, y=y_lab, data=block_scores\
+                    ,hue=block_scores.iloc[:, -1])
         
 
     def pred_proba_plot(self, C, l1_ratio, object_id,
@@ -981,6 +982,7 @@ class RENT:
             ax.set(xlim=(lower, upper))
             ax.axvline(x=0.5, color='k', linestyle='--', label ="Threshold")
             ax.legend(fontsize=10)
+            
             if norm_hist == False:
                 ax.set_ylabel('absolute frequencies', fontsize=10)
                 ax.set_xlabel('ProbC1', fontsize=10)
@@ -1012,11 +1014,12 @@ class RENT:
         test_data.columns = self.data.columns
         pred_list1 = []
         
-        traind = sc.fit_transform(self.data.loc[:,features])
-        testd = sc.transform(test_data.loc[:,features])
+        traind = sc.fit_transform(self.data.loc[:, features])
+        testd = sc.transform(test_data.loc[:, features])
         model = LogisticRegression(penalty='none', max_iter=8000, 
                                    solver="saga", random_state=0 ).\
                 fit(traind,self.target)
+        
         for i in range(100):
             pred_list1.append(matthews_corrcoef(
                     np.random.RandomState(seed=i).permutation(test_labels),\

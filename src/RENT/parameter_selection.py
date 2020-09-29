@@ -29,7 +29,7 @@ def parameter_selection(data,
     if len(np.shape(labels)) == 2:
         labels = labels.squeeze()
     
-    skf = StratifiedKFold(n_splits=n_splits, random_state=0, shuffle = True)
+    skf = StratifiedKFold(n_splits=n_splits, random_state=0, shuffle=True)
     
     scores_df = pd.DataFrame(np.zeros, index=my_l1_params, columns=my_reg_params)
     zeroes_df = pd.DataFrame(np.zeros, index=my_l1_params, columns=my_reg_params)

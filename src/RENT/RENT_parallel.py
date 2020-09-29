@@ -89,7 +89,7 @@ class RENT:
     """
 
     def __init__(self, data, target, feat_names=[],
-                 scale=True, C=[1], poly='OFF',
+                 C=[1], poly='OFF',
                  testsize_range=(0.2, 0.6),
                  scoring='accuracy', clf='logreg',
                  num_tt=5, l1_ratios = [0.6],
@@ -743,8 +743,9 @@ class RENT:
             self.reduced_data = self.data[select_feat_names]
             
             summary_df.columns.name ='C={0}, l1={1}'.format(C,l1_ratio)
+            self.sel_var = sel_var[0]
                 
-            return(summary_df, self.reduced_data, sel_var[0])  
+            return(summary_df, self.reduced_data, self.sel_var)  
     
     def get_spec_weights_dict(self, C, l1_ratio):
         """
@@ -910,7 +911,7 @@ class RENT:
                                 range(pca_model.X_scores().shape[1])]
         
         # create confusion matrix coloring
-        label_matrix = self.incorrect_labels
+        label_matrix = self.incorrect_labels.copy()
         col = np.empty((np.shape(label_matrix)[0],), dtype=np.dtype('U100'))
         # neutral objects have an incorrectly labeled rate between 25 and 75 %
         # negative = 0
@@ -1024,4 +1025,41 @@ class RENT:
         
        
 
-       
+    def gradient_plot(self):
+        dat_added = pd.merge(self.data, self.incorrect_labels.iloc[:,-1], \
+                             left_index=True, right_index=True)
+        variables = list(self.sel_var)
+        variables.append(-1)
+        data_0 = dat_added.iloc[np.where(self.target==0)[0],variables]
+        data_1 = dat_added.iloc[np.where(self.target==1)[0],variables]
+        
+        pca_model_0 = ho.nipalsPCA(arrX=data_0.iloc[:,:-1].values, \
+                                   Xstand=True, cvType=None)
+        scores = pd.DataFrame(pca_model_0.X_scores())
+        scores.index = list(data_0.index)
+        scores.columns = ['PC{0}'.format(x+1) for x in \
+                                 range(pca_model_0.X_scores().shape[1])]
+            
+        
+        fig, axs = plt.subplots(ncols=2)
+        sns.scatterplot(x='PC1',y='PC2',data=scores, \
+                        hue=data_0.iloc[:,-1], \
+                            palette=sns.cubehelix_palette(as_cmap=True), \
+                                ax=axs[0])
+        
+        pca_model_1 = ho.nipalsPCA(arrX=data_1.iloc[:,:-1].values, \
+                                   Xstand=True, cvType=None)
+        scores = pd.DataFrame(pca_model_1.X_scores())
+        scores.index = list(data_1.index)
+        scores.columns = ['PC{0}'.format(x+1) for x in \
+                                 range(pca_model_1.X_scores().shape[1])]
+            
+        sns.scatterplot(x='PC1',y='PC2',data=scores, \
+                        hue=data_1.iloc[:,-1], \
+                            palette=sns.cubehelix_palette(
+                                start=.5, rot=-.75, as_cmap=True),\
+                                ax=axs[1])
+        
+        plt.show()
+
+        

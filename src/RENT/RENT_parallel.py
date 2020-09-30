@@ -67,11 +67,11 @@ class RENT:
     
     scoring: str, options: 'accuracy', 'f1', 'precision', 'recall', 'matthews'
     
-    clf: str, options: 'logreg' for logistic regression
-                       'linearSVC' for linear support vector classifier
-                       'RM' for linear regression
+    method: str, options: 'logreg' for logistic regression
+                          'linearSVC' for linear support vector classifier
+                          'RM' for linear regression
     
-    num_tt: int, number of unique train-test splits
+    K: int, number of unique models in ensemble based on unique subsets of data
 
     
     OUTPUT
@@ -82,8 +82,8 @@ class RENT:
     def __init__(self, data, target, feat_names=[],
                  scale=True, C=[1], poly='OFF',
                  testsize_range=(0.2, 0.6),
-                 scoring='accuracy', clf='logreg',
-                 num_tt=5, l1_ratios = [0.6],
+                 scoring='accuracy', method='logreg',
+                 K=5, l1_ratios = [0.6],
                  verbose = 0):
         
         # Print parameters for checking
@@ -91,7 +91,7 @@ class RENT:
         print('Dim target', np.shape(target))
         print('regularization parameters C:', C)
         print('l1_ratios:', l1_ratios)
-        print('num TT splits:', num_tt)
+        print('number of models in ensemble:', K)
         print('data type:', type(data))
         print('verbose:', verbose)
 
@@ -100,10 +100,10 @@ class RENT:
         self.target = target
         self.C = C
         self.l1_ratios = l1_ratios
-        self.num_tt = num_tt
+        self.K = K
         self.feat_names = feat_names
         self.scoring = scoring
-        self.clf = clf
+        self.method = method
         self.testsize_range = testsize_range
         self.verbose = verbose
         
@@ -197,7 +197,7 @@ class RENT:
             # Loop through requested number of tt splits
             for l1 in self.l1_ratios:
                 
-                if self.clf == "RM":
+                if self.method == "RM":
                     X_train, X_test, y_train, y_test = train_test_split(
                           self.data, self.target, 
                           test_size=self.random_testsizes[tt_split],
@@ -224,7 +224,7 @@ class RENT:
                 if self.verbose > 0:
                     print('l1 = ', l1, 'C = ', C, ', TT split = ', tt_split)
 
-                if self.clf == 'logreg':
+                if self.method == 'logreg':
                     # Trian a logistic regreission model
                     model = LogisticRegression(solver='saga', 
                                             C=C,
@@ -235,7 +235,7 @@ class RENT:
                                             random_state=0).\
                                             fit(X_train_std, y_train)
                     
-                elif self.clf == 'linSVC':
+                elif self.method == 'linSVC':
                     model = LinearSVC(penalty='l1',
                                     C=C,
                                     dual=False,
@@ -243,7 +243,7 @@ class RENT:
                                     random_state=0).\
                                     fit(X_train_std, y_train)
                 
-                elif self.clf == "RM":
+                elif self.method == "RM":
                     model = ElasticNet(alpha=1/C, l1_ratio=l1,
                                        max_iter=5000, random_state=0, \
                                        fit_intercept=False).\
@@ -259,7 +259,7 @@ class RENT:
                 self.weight_dict[(C, l1, tt_split)] = mod_coef
                 self.weight_list.append(mod_coef)
                 
-                if self.clf =="RM":
+                if self.method =="RM":
                     score = r2_score(y_test, model.predict(X_test_std))
                 # Check which metric to use
                 else:
@@ -303,7 +303,7 @@ class RENT:
                 self.score_list.append(score)
                 
                 # Collect true values and predictions in dictionary
-                if(self.clf != "RM" and self.clf != "linSVC"):
+                if(self.method != "RM" and self.method != "linSVC"):
                     res_df = pd.DataFrame({"y_test":y_test, \
                                            "y_pred": y_test_pred})
                     res_df.index = X_test.index
@@ -374,7 +374,7 @@ class RENT:
         np.random.seed(0)
         self.random_testsizes = np.random.uniform(self.testsize_range[0],
                                                   self.testsize_range[1], 
-                                                  self.num_tt)
+                                                  self.K)
         
         # Initiate a dictionary holding coefficients for each model. Keys are
         # (C, num_tt, num_w_init)
@@ -429,11 +429,11 @@ class RENT:
         
         # Call parallelization function 
         Parallel(n_jobs=-1, verbose=0, backend="threading")(
-             map(delayed(self.run_parallel), range(self.num_tt)))  
+             map(delayed(self.run_parallel), range(self.K)))  
         ende = time.time()
         self.runtime = '{:5.3f}s'.format(ende-start)
             
-    def get_scores_summary_by_regParam(self, showall = False):
+    def get_scores_summary_by_regParam(self, showall=False):
         """
         Returns the average of metric score across all 
         train-test splits and weight initialisations for each pair of (l1,C).
@@ -468,7 +468,7 @@ class RENT:
                 for C in self.C:
                     spec_result_list = []
                     for k in self.score_dict.keys():
-                        if k[0] == C and k[1] ==l1:
+                        if k[0] == C and k[1] == l1:
                             spec_result_list.append(self.score_dict[k])
                     result_list.append(spec_result_list)
             
@@ -497,12 +497,12 @@ class RENT:
         ------
         <pandas DataFrame>: 
         """
-        result_list = pd.DataFrame(index = self.l1_ratios,\
+        result_list = pd.DataFrame(index=self.l1_ratios,\
                                    columns=self.C)
         for l1 in self.l1_ratios:
             for C in self.C:
                 count=0
-                for tt_split in range(self.num_tt):
+                for tt_split in range(self.K):
         
                     nz = \
                     len(np.where(pd.DataFrame(self.weight_dict[(C, \
@@ -510,7 +510,7 @@ class RENT:
                                                                 tt_split)\
 ])==0)[0])
                     count = count + nz / len(self.feat_names)
-                count = count / (self.num_tt)
+                count = count / (self.K)
                 result_list.loc[l1, C] = count
         return result_list
 
@@ -656,7 +656,7 @@ class RENT:
             spec_weight_list = []
             
             # Loop through all train-test splits
-            for tt_split in range(self.num_tt):
+            for tt_split in range(self.K):
                 
                 # Loop through all weight initialisations
 
@@ -678,19 +678,19 @@ class RENT:
             # np.apply_along_axis(self.zero_parameters, 0, spec_weight_arr)
             
             def non_zero_count_perc(vec):
-                feature_count = len(np.where(vec!=0)[0])
+                feature_count = len(np.where(vec != 0)[0])
                 return feature_count/len(vec)
             
             perc = np.apply_along_axis(non_zero_count_perc, 0, spec_weight_arr)
 
             # signum function
             def sign_vote(x):
-                return np.abs(np.sum(np.sign(x)))/len(x)
+                return np.abs(np.sum(np.sign(x))) / len(x)
             sig_criterium = np.apply_along_axis(sign_vote,0,spec_weight_arr)
             
             # t-statistic
             t_test = t.cdf(
-                    abs(means / np.sqrt((stds**2)/len(spec_weight_list))), \
+                    abs(means / np.sqrt((stds ** 2) / len(spec_weight_list))), \
            (len(spec_weight_list) - 1))
             
             # Construct a dataframe thaw holds the results compted above
@@ -838,7 +838,7 @@ class RENT:
             # prediction
             spec_pred_list = []
             
-            for tt_split in range(self.num_tt):
+            for tt_split in range(self.K):
 
                 spec_pred_list.append(self.pred_dict[(C,\
                                                       l1_ratio,\
@@ -871,7 +871,7 @@ class RENT:
     def get_indices(self):
         return self.indices
     
-    def confusion_variance_plot(self, x_lab = "PC1", y_lab = "PC2"):
+    def confusion_variance_plot(self, x_lab="PC1", y_lab="PC2"):
         """
         This method performs PCA on the reduced data and plots a seaborn 
         relplot.
@@ -891,7 +891,7 @@ class RENT:
         colored seaborn plot
         """
         block = self.reduced_data
-        block = block.drop(axis=1,labels=(block.nunique())\
+        block = block.drop(axis=1, labels=(block.nunique())\
                            [block.nunique()==1].index)
         pca_model=ho.nipalsPCA(arrX=block.values, Xstand=True, cvType=None)
         block_scores = pd.DataFrame(pca_model.X_scores())
@@ -956,7 +956,7 @@ class RENT:
             if binning == "auto":
                 bins = None
             if binning == "rice":
-                bins = math.ceil(2 * len(data) ** (1./3.))
+                bins = math.ceil(2 * len(data) ** (1. / 3.))
             if binning == "sturges":
                 bins = math.ceil(math.log(len(data), 2)) + 1
             sns.set(font_scale=0.5)

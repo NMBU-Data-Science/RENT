@@ -733,8 +733,8 @@ class RENT:
             self.reduced_data = self.data[select_feat_names]
             
             summary_df.columns.name ='C={0}, l1={1}'.format(C, l1_ratio)
-                
-            return(summary_df, self.reduced_data, sel_var[0])  
+            self.sel_var = sel_var[0]
+            return(summary_df, self.reduced_data, self.sel_var)  
     
     def get_spec_weights_dict(self, C, l1_ratio):
         """
@@ -900,7 +900,7 @@ class RENT:
                                 range(pca_model.X_scores().shape[1])]
         
         # create confusion matrix coloring
-        label_matrix = self.incorrect_labels
+        label_matrix = self.incorrect_labels.copy()
         col = np.empty((np.shape(label_matrix)[0],), dtype=np.dtype('U100'))
         
         # neutral objects have an incorrectly labeled rate between 25 and 75 %
@@ -980,6 +980,60 @@ class RENT:
                 ax.set_xlabel('ProbC1')
             ax.set_title('Object: {0}, True class: {1}'.format(obj, \
                          self.target[obj]), fontsize=10)
+                
+                
+    def gradient_plot(self):
+        dat_added = pd.merge(self.data, self.incorrect_labels.iloc[:,-1], \
+                             left_index=True, right_index=True)
+        variables = list(self.sel_var)
+        variables.append(-1)
+        data_0 = dat_added.iloc[np.where(self.target==0)[0],variables]
+        data_1 = dat_added.iloc[np.where(self.target==1)[0],variables]
+        
+        pca_model_0 = ho.nipalsPCA(arrX=data_0.iloc[:,:-1].values, \
+                                   Xstand=True, cvType=None)
+        scores_0 = pd.DataFrame(pca_model_0.X_scores())
+        scores_0.index = list(data_0.index)
+        scores_0.columns = ['PC{0}'.format(x+1) for x in \
+                                 range(pca_model_0.X_scores().shape[1])]
+        
+        calExplVar_0 = pca_model_0.X_calExplVar()
+        # Get calibrated explained variance and store in pandas dataframe with row and column names
+        calExplVar_df_0 = pd.DataFrame(calExplVar_0)
+        calExplVar_df_0.columns = ['calibrated explained variance C0']
+        calExplVar_df_0.index = ['PC{0}'.format(x+1) for x in range(pca_model_0.X_loadings().shape[1])]
+
+        
+        fig, axs = plt.subplots(ncols=2)
+        sns.scatterplot(x='PC1',y='PC2',data=scores_0, \
+                        hue=data_0.iloc[:,-1], \
+                            palette=sns.cubehelix_palette(as_cmap=True), \
+                                ax=axs[0])
+        
+        pca_model_1 = ho.nipalsPCA(arrX=data_1.iloc[:,:-1].values, \
+                                   Xstand=True, cvType=None)
+        scores_1 = pd.DataFrame(pca_model_1.X_scores())
+        scores_1.index = list(data_1.index)
+        scores_1.columns = ['PC{0}'.format(x+1) for x in \
+                                 range(pca_model_1.X_scores().shape[1])]
+        
+        calExplVar_1 = pca_model_1.X_calExplVar()
+        # Get calibrated explained variance and store in pandas dataframe with row and column names
+        calExplVar_df_1 = pd.DataFrame(calExplVar_1)
+        calExplVar_df_1.columns = ['calibrated explained variance C1']
+        calExplVar_df_1.index = ['PC{0}'.format(x+1) for x in range(pca_model_1.X_loadings().shape[1])]
+        
+        
+        sns.scatterplot(x='PC1',y='PC2',data=scores_1, \
+                        hue=data_1.iloc[:,-1], \
+                            palette=sns.cubehelix_palette(
+                                start=.5, rot=-.75, as_cmap=True),\
+                                ax=axs[1])
+        
+        calExplVardf = calExplVar_df_0.merge(calExplVar_df_1, left_index=True, right_index=True)
+            
+        plt.show()
+        return(calExplVardf)
             
     def feasibility_study(self, test_data, test_labels, features, feature_size):
         # FS1

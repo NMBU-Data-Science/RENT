@@ -82,7 +82,7 @@ class RENT:
     def __init__(self, data, target, feat_names=[],
                  scale=True, C=[1], poly='OFF',
                  testsize_range=(0.2, 0.6),
-                 scoring='accuracy', clf='logreg',
+                 scoring='accuracy', method='logreg',
                  K=5, l1_ratios = [0.6],
                  verbose = 0):
         
@@ -103,7 +103,7 @@ class RENT:
         self.K = K
         self.feat_names = feat_names
         self.scoring = scoring
-        self.clf = clf
+        self.method = method
         self.testsize_range = testsize_range
         self.verbose = verbose
         
@@ -197,7 +197,7 @@ class RENT:
             # Loop through requested number of tt splits
             for l1 in self.l1_ratios:
                 
-                if self.clf == "RM":
+                if self.method == "RM":
                     X_train, X_test, y_train, y_test = train_test_split(
                           self.data, self.target, 
                           test_size=self.random_testsizes[tt_split],
@@ -224,7 +224,7 @@ class RENT:
                 if self.verbose > 0:
                     print('l1 = ', l1, 'C = ', C, ', TT split = ', tt_split)
 
-                if self.clf == 'logreg':
+                if self.method == 'logreg':
                     # Trian a logistic regreission model
                     model = LogisticRegression(solver='saga', 
                                             C=C,
@@ -235,7 +235,7 @@ class RENT:
                                             random_state=0).\
                                             fit(X_train_std, y_train)
                     
-                elif self.clf == 'linSVC':
+                elif self.method == 'linSVC':
                     model = LinearSVC(penalty='l1',
                                     C=C,
                                     dual=False,
@@ -243,7 +243,7 @@ class RENT:
                                     random_state=0).\
                                     fit(X_train_std, y_train)
                 
-                elif self.clf == "RM":
+                elif self.method == "RM":
                     model = ElasticNet(alpha=1/C, l1_ratio=l1,
                                        max_iter=5000, random_state=0, \
                                        fit_intercept=False).\
@@ -259,7 +259,7 @@ class RENT:
                 self.weight_dict[(C, l1, tt_split)] = mod_coef
                 self.weight_list.append(mod_coef)
                 
-                if self.clf =="RM":
+                if self.method =="RM":
                     score = r2_score(y_test, model.predict(X_test_std))
                 # Check which metric to use
                 else:
@@ -303,7 +303,7 @@ class RENT:
                 self.score_list.append(score)
                 
                 # Collect true values and predictions in dictionary
-                if(self.clf != "RM" and self.clf != "linSVC"):
+                if(self.method != "RM" and self.method != "linSVC"):
                     res_df = pd.DataFrame({"y_test":y_test, \
                                            "y_pred": y_test_pred})
                     res_df.index = X_test.index

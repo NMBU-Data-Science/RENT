@@ -83,7 +83,7 @@ class RENT:
                  scale=True, C=[1], poly='OFF',
                  testsize_range=(0.2, 0.6),
                  scoring='accuracy', clf='logreg',
-                 num_tt=5, l1_ratios = [0.6],
+                 K=5, l1_ratios = [0.6],
                  verbose = 0):
         
         # Print parameters for checking
@@ -91,7 +91,7 @@ class RENT:
         print('Dim target', np.shape(target))
         print('regularization parameters C:', C)
         print('l1_ratios:', l1_ratios)
-        print('num TT splits:', num_tt)
+        print('Number of models in ensemble:', K)
         print('data type:', type(data))
         print('verbose:', verbose)
 
@@ -100,7 +100,7 @@ class RENT:
         self.target = target
         self.C = C
         self.l1_ratios = l1_ratios
-        self.num_tt = num_tt
+        self.K = K
         self.feat_names = feat_names
         self.scoring = scoring
         self.clf = clf
@@ -374,7 +374,7 @@ class RENT:
         np.random.seed(0)
         self.random_testsizes = np.random.uniform(self.testsize_range[0],
                                                   self.testsize_range[1], 
-                                                  self.num_tt)
+                                                  self.K)
         
         # Initiate a dictionary holding coefficients for each model. Keys are
         # (C, num_tt, num_w_init)
@@ -429,7 +429,7 @@ class RENT:
         
         # Call parallelization function 
         Parallel(n_jobs=-1, verbose=0, backend="threading")(
-             map(delayed(self.run_parallel), range(self.num_tt)))  
+             map(delayed(self.run_parallel), range(self.K)))  
         ende = time.time()
         self.runtime = '{:5.3f}s'.format(ende-start)
             
@@ -502,7 +502,7 @@ class RENT:
         for l1 in self.l1_ratios:
             for C in self.C:
                 count=0
-                for tt_split in range(self.num_tt):
+                for tt_split in range(self.K):
         
                     nz = \
                     len(np.where(pd.DataFrame(self.weight_dict[(C, \
@@ -510,7 +510,7 @@ class RENT:
                                                                 tt_split)\
 ])==0)[0])
                     count = count + nz / len(self.feat_names)
-                count = count / (self.num_tt)
+                count = count / (self.K)
                 result_list.loc[l1, C] = count
         return result_list
 
@@ -656,7 +656,7 @@ class RENT:
             spec_weight_list = []
             
             # Loop through all train-test splits
-            for tt_split in range(self.num_tt):
+            for tt_split in range(self.K):
                 
                 # Loop through all weight initialisations
 
@@ -838,7 +838,7 @@ class RENT:
             # prediction
             spec_pred_list = []
             
-            for tt_split in range(self.num_tt):
+            for tt_split in range(self.K):
 
                 spec_pred_list.append(self.pred_dict[(C,\
                                                       l1_ratio,\

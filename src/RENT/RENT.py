@@ -209,9 +209,9 @@ class RENT_Base(ABC):
         scores['coloring'] = data.iloc[:,-1]
 
         fig, ax = plt.subplots()
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_title('title')
+        ax.set_xlabel('PC1')
+        ax.set_ylabel('PC2')
+        ax.set_title('Scatterplot')
         ax.set_facecolor('silver')
         
         # plot
@@ -244,6 +244,41 @@ class RENT_Base(ABC):
                         alpha=0.5)
             cbar = plt.colorbar()
             cbar.set_label('% incorrect predicted class 1')
+            
+            
+            mlist = []
+            col_list = []
+
+            for i in range(len(data.index)):
+                if data.iloc[i,-2]==0:
+                    mlist.append("*")
+                else:
+                    mlist.append("o")
+        
+
+            for i in range(len(data.index)):
+                if data.iloc[i,-2]==0 and data.iloc[i,-1]==0:
+                    col_list.append('honeydew')
+                elif data.iloc[i,-2]==1 and data.iloc[i,-1]==0:
+                    col_list.append('snow')
+                elif data.iloc[i,-2]==0 and data.iloc[i,-1]>0 and data.iloc[i,-1]<50:
+                    col_list.append('mediumspringgreen')
+                elif data.iloc[i,-2]==1 and data.iloc[i,-1]>0 and data.iloc[i,-1]<50:
+                    col_list.append('tomato')
+                    col_list.append('green')
+                elif data.iloc[i,-2]==1 and data.iloc[i,-1]>=50 and data.iloc[i,-1]<100: 
+                    col_list.append('red')   
+                elif data.iloc[i,-2]==0 and data.iloc[i,-1]==100:
+                    col_list.append('darkgreen')
+                elif data.iloc[i,-2]==1 and data.iloc[i,-1]==100: 
+                    col_list.append('maroon')
+                else:
+                    col_list.append(np.nan)
+
+            for i in range(len(mlist)):
+                plt.scatter(scores.iloc[i,0], scores.iloc[i,1],
+                            marker=mlist[i], c=col_list[i])
+                            
         elif group == 'continuous':
             plt.scatter(scores.iloc[:,0], scores.iloc[:,1], 
                         c=scores.iloc[:,-1],

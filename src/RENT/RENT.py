@@ -15,6 +15,7 @@ import warnings
 import hoggorm as ho
 import hoggormplot as hopl
 
+from abc import ABC, abstractmethod
 from itertools import combinations, combinations_with_replacement
 from joblib import Parallel, delayed
 
@@ -32,7 +33,27 @@ from sklearn.svm import LinearSVC
 from scipy.stats import t
 
 
-class RENT_Base:
+class RENT_Base(ABC):
+    
+    @abstractmethod
+    def feasibility_study(self, test_data, test_labels, K_feas):
+        pass
+    
+    @abstractmethod
+    def run_parallel(self, K):
+        pass
+    
+    @abstractmethod
+    def train(self):
+        pass
+    
+    @abstractmethod
+    def parameter_selection(self, C_params, l1_params, n_splits, testsize_range):
+        pass
+    
+    @abstractmethod
+    def summary_objects(self):
+        pass
     
     def selectFeatures(self, tau_1=0.9, tau_2=0.9, tau_3=0.975):
         """
@@ -132,13 +153,15 @@ class RENT_Base:
             if k[0] == self._best_C and k[1] == self._best_l1_ratio:
                 weights_df = weights_df.append( \
                         pd.DataFrame(self.weight_dict[k]))
+        weights_df.index = list(range(self.K))
         return(weights_df)
     
         
     def plot_object_PCA(self, group=0):
         """
          Think about further return values (cumulated variance dataframes,...)
-         Define self.incorrect_labels for regression problem.
+         Define self.incorrect_labels for regression problem. Data column names
+         must not be a value range
 
         Parameters
         ----------
@@ -152,28 +175,44 @@ class RENT_Base:
         None.
 
         """
-        dat = pd.merge(self.data, self.incorrect_labels.iloc[:,-1], \
-                             left_index=True, right_index=True)
-        variables = list(self.sel_var)
-        variables.append(-1)
+        if group != 'continuous':
+            dat = pd.merge(self.data, self.incorrect_labels.iloc[:,[1,-1]], \
+                                 left_index=True, right_index=True)
+            variables = list(self.sel_var)
+            variables.extend([-2,-1])
+        else:
+            dat = pd.merge(self.data, self.incorrect_labels.iloc[:,-1], \
+                                     left_index=True, right_index=True)
+            variables = list(self.sel_var)
+            variables.extend([-1])
 
         if group == 'both' or group == 'continuous':
             data = dat.iloc[:,variables]
         else:
-            data = dat.iloc[np.where(self.target==group)[0],variables]
-        pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-1].values, \
-                                   Xstand=True, cvType=['loo'])
+            data = dat.iloc[np.where(dat.iloc[:,-2]==group)[0],variables]
+            
+        if group != 'continuous':
+            data = data.sort_values(by='% incorrect')
+
+            pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-2].values, \
+                                       Xstand=True, cvType=['loo'])
+
+        else:
+            pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-1].values, \
+                                       Xstand=True, cvType=['loo'])
+                
+                
         scores = pd.DataFrame(pca_model.X_scores())
         scores.index = list(data.index)
         scores.columns = ['PC{0}'.format(x+1) for x in \
                                  range(pca_model.X_scores().shape[1])]
         scores['coloring'] = data.iloc[:,-1]
-        
+
         fig, ax = plt.subplots()
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_title('title')
-        ax.set_facecolor('lightgrey')
+        ax.set_facecolor('silver')
         
         # plot
         if group == 0:
@@ -187,29 +226,34 @@ class RENT_Base:
             cbar = plt.colorbar()
             cbar.set_label('% incorrect predicted class 1')
         elif group == 'both':
-            zeroes = np.where(self.target==0)[0]
-            ones = np.where(self.target==1)[0]
-            
+            zeroes = np.where(data.iloc[:,-2]==0)[0]
+            ones = np.where(data.iloc[:,-2]==1)[0]
+
             plt.scatter(scores.iloc[zeroes,0], 
                         scores.iloc[zeroes,1], 
                         c= scores.iloc[zeroes,-1], 
                         cmap='Greens',
-                        marker='*')
+                        marker='*',
+                        alpha=0.5)
             cbar = plt.colorbar()
             cbar.set_label('% incorrect predicted class 0')
             plt.scatter(scores.iloc[ones,0], 
                         scores.iloc[ones,1], 
                         c= scores.iloc[ones,-1], 
-                        cmap='Reds')
+                        cmap='Reds',
+                        alpha=0.5)
             cbar = plt.colorbar()
             cbar.set_label('% incorrect predicted class 1')
         elif group == 'continuous':
             plt.scatter(scores.iloc[:,0], scores.iloc[:,1], 
-                        c=scores.iloc[:,-1])
+                        c=scores.iloc[:,-1],
+                        cmap='YlOrRd')
             cbar = plt.colorbar()
             cbar.set_label('average absolute error')
-            
-        hopl.plot(pca_model, plots=[1,2,3,4,6])
+
+        objnames = list(data.index.astype('str'))
+        hopl.plot(pca_model, plots=[1,2,3,4,6], 
+                  objNames=objnames, XvarNames=list(data.columns[:-2]))
         
         
     def get_enetParam_matrices(self):
@@ -423,7 +467,7 @@ class RENT_Classification(RENT_Base):
                 X_test_std = sc.transform(X_test)
                 
                 if self.verbose > 0:
-                    print('l1 = ', l1, 'C = ', C, ', TT split = ', K)
+                    print('C = ', C, 'l1 = ', l1, ', TT split = ', K)
 
                 if self.method == 'logreg':
                     # Trian a logistic regreission model
@@ -709,11 +753,13 @@ class RENT_Classification(RENT_Base):
         normed_zeroes = (zeroes_df-np.nanmin(zeroes_df.values))\
         /(np.nanmax(zeroes_df.values)-np.nanmin(zeroes_df.values))
         
-        combi = (normed_scores ** -1 + normed_zeroes ** -1) ** -1
-        best_combi_row, best_combi_col = np.where(combi == \
-                                                  np.nanmax(combi.values))
-        best_l1 = combi.index[np.nanmax(best_combi_row)]
-        best_C = combi.columns[np.nanmin(best_combi_col)]
+        combination = (normed_scores.copy().applymap(self.inv) + \
+                       normed_zeroes.copy().applymap(self.inv)
+                       ).applymap(self.inv)
+        best_combination_row, best_combination_col = np.where(combination == \
+                                                  np.nanmax(combination.values))
+        best_l1 = combination.index[np.nanmax(best_combination_row)]
+        best_C = combination.columns[np.nanmin(best_combination_col)]
         
         return(best_C, best_l1)
                 
@@ -762,7 +808,13 @@ class RENT_Classification(RENT_Base):
         if self.method != 'logreg':
             return warnings.warn('Classification method must be "logreg"!')
         else:
-            return self.pred_proba_dict[(self._best_C, self._best_l1_ratio)]
+            self.pp_data = self.pred_proba_dict[
+                (self._best_C, self._best_l1_ratio)].copy()
+            
+            self.pp_data.columns = ['K({0})'.format(x+1) \
+                                        for x in range(
+                                                self.pp_data.shape[1])]
+            return self.pp_data
         
     def plot_object_probabilities(self, object_id, binning='auto', lower=0,
                                   upper=1, kde=False, norm_hist=False):
@@ -791,6 +843,10 @@ class RENT_Classification(RENT_Base):
         """
         # different binning schemata
         # https://www.answerminer.com/blog/binning-guide-ideal-histogram
+        target_objects = pd.DataFrame(self.target)
+        target_objects.index = self.pred_proba_dict[self._best_C, \
+                              self._best_l1_ratio].index
+        self.t = target_objects
         for obj in object_id:
             fig, ax = plt.subplots()
             data = self.pred_proba_dict[self._best_C, \
@@ -823,7 +879,7 @@ class RENT_Classification(RENT_Base):
                 ax.set_ylabel('frequencies')
                 ax.set_xlabel('ProbC1')
             ax.set_title('Object: {0}, True class: {1}'.format(obj, \
-                         self.target[obj]), fontsize=10)
+                         target_objects.loc[obj,0]), fontsize=10)
                 
 
 
@@ -1141,11 +1197,11 @@ class RENT_Regression(RENT_Base):
         normed_zeroes = (zeroes_df-np.nanmin(zeroes_df.values))\
         /(np.nanmax(zeroes_df.values)-np.nanmin(zeroes_df.values))
         
-        combi = (normed_scores ** -1 + normed_zeroes ** -1) ** -1
-        best_combi_row, best_combi_col = np.where(combi == \
-                                                  np.nanmax(combi.values))
-        best_l1 = combi.index[np.nanmax(best_combi_row)]
-        best_C = combi.columns[np.nanmin(best_combi_col)]
+        combination = (normed_scores ** -1 + normed_zeroes ** -1) ** -1
+        best_combination_row, best_combination_col = np.where(combination == \
+                                                  np.nanmax(combination.values))
+        best_l1 = combination.index[np.nanmax(best_combination_row)]
+        best_C = combination.columns[np.nanmin(best_combination_col)]
         
         return(best_C, best_l1)
             
@@ -1402,7 +1458,6 @@ class RENT_Regression(RENT_Base):
             if binning == "sturges":
                 bins = math.ceil(math.log(len(data), 2)) + 1
         
-            sns.set(font_scale=0.5)
             sns.set_style("white")
             ax=sns.distplot(data, 
                             bins=bins, 

@@ -59,7 +59,7 @@ class RENT_Base(ABC):
     
     def selectFeatures(self, tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975):
         """
-        Selectes features based on the cutoff values for .
+        Selectes features based on the cutoff values for tau_1_cutoff, tau_2_cutoff and tau_3_cutoff.
         Parameters
         ----------
         tau_1_cutoff : <int> or <float>

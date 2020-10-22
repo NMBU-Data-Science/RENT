@@ -306,10 +306,26 @@ class RENT_Base(ABC):
         
         
     def get_enetParam_matrices(self):
+        """
+        Returns
+        -------
+        Returns three pandas data frames showing result for all combinations
+        of l1_ratio and C.
+
+        dataFrame_1: holds average scores for predictive performance
+        dataFrame_2: holds average percentage of how many feature weights were set to zero
+        dataFrame_3: holds harmonic means based from values of dataFrame_1 and dataFrame_2
+        """
         # return scores, zeroes,.. matrices
         return self._scores_df, self._zeroes_df, self._combination
     
     def get_enet_params(self):
+        """
+        Returns
+        -------
+        A tuple holding (C, l1_ratio) for the best average predictive performance. This
+        combination of C l1_ratio will be used in subsequent class methods.
+        """
         return self._best_C, self._best_l1_ratio
     
     def set_enet_params(self, C, l1):

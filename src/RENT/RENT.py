@@ -33,6 +33,9 @@ from scipy.stats import t
 
 
 class RENT_Base(ABC):
+    """
+    This is the base class for RENT_Classification and RENT_Regression.
+    """
     
     @abstractmethod
     def feasibility_study(self, test_data, test_labels, K_feas):
@@ -54,21 +57,21 @@ class RENT_Base(ABC):
     def summary_objects(self):
         pass
     
-    def selectFeatures(self, tau_1=0.9, tau_2=0.9, tau_3=0.975):
+    def selectFeatures(self, tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975):
         """
-        Perform RENT feature selection on the dataset.
+        Selectes features based on the cutoff values for .
         Parameters
         ----------
-        tau_1 : <int> or <float>
+        tau_1_cutoff : <int> or <float>
             Cutoff critera for feature selection. Minimum Frequency of how 
             often a feature must have been selected across all models
             for given regularisation parameter. Choose value between 0 and 
             1 (in %). The default is 0.9.
-        tau_2 : <int> or <float>
+        tau_2_cutoff : <int> or <float>
              Cutoff criteria for feature selection. For a feature to be 
              selected criteria 2 must be higher than cutoff_means_ratio. 
              The default is 0.9.
-        tau_3 : <int> or <float>
+        tau_3_cutoff : <int> or <float>
              Cutoff criteria for feature selection. For a feature to be 
              selected criteria 3 must be higher than cutoff_mean_std_ratio. 
              The default is 0.975.
@@ -103,9 +106,9 @@ class RENT_Base(ABC):
         self.summary_df.columns = self.feat_names
         
         self.sel_var = np.where(
-                (self.summary_df.iloc[0, :] >= tau_1) & 
-                (self.summary_df.iloc[1, :] >= tau_2) & 
-                (self.summary_df.iloc[2, :] >= tau_3\
+                (self.summary_df.iloc[0, :] >= tau_1_cutoff) & 
+                (self.summary_df.iloc[1, :] >= tau_2_cutoff) & 
+                (self.summary_df.iloc[2, :] >= tau_3_cutoff\
                             ))[0]
         return self.sel_var
     

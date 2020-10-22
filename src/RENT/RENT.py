@@ -59,26 +59,23 @@ class RENT_Base(ABC):
     
     def selectFeatures(self, tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975):
         """
-        Selectes features based on the cutoff values for .
+        Selectes features based on the cutoff values for tau_1_cutoff, tau_2_cutoff and tau_3_cutoff.
+        
         Parameters
         ----------
-        tau_1_cutoff : <int> or <float>
-            Cutoff critera for feature selection. Minimum Frequency of how 
-            often a feature must have been selected across all models
-            for given regularisation parameter. Choose value between 0 and 
-            1 (in %). The default is 0.9.
-        tau_2_cutoff : <int> or <float>
-             Cutoff criteria for feature selection. For a feature to be 
-             selected criteria 2 must be higher than cutoff_means_ratio. 
-             The default is 0.9.
-        tau_3_cutoff : <int> or <float>
-             Cutoff criteria for feature selection. For a feature to be 
-             selected criteria 3 must be higher than cutoff_mean_std_ratio. 
-             The default is 0.975.
+        tau_1_cutoff : <float>
+            Cutoff value for tau_1 criterion. Choose value between 0 and 
+            1. The default is 0.9.
+        tau_2_cutoff : <float>
+            Cutoff value for tau_2 criterion. Choose value between 0 and 
+            1. The default is 0.9.
+        tau_3_cutoff : <float>
+            Cutoff value for tau_3 criterion. Choose value between 0 and 
+            1. The default is 0.975.
 
         Returns
         -------
-        Column indices of selected features.
+        Numpy array holduing indices of selected features.
 
         """
         weight_list = []
@@ -114,24 +111,20 @@ class RENT_Base(ABC):
     
     def summary_criteria(self):
         """
-        Summary statistic of the selection criteria for the dataset used for 
-        feature selection.
-
         Returns
         -------
-        Summary of selection criteria.
-
+        Summary statistic of the selection criteria tau_1, tau_2 and tau_3
+        for each feature. Also prints out summary statistic.
         """
         return self.summary_df
         
     def plot_selection_frequency(self):
         """
-        
+        Plots tau_1 for each feature. 
 
         Returns
         -------
-        None.
-
+        None
         """
         plt.figure(figsize=(10, 7))
         (markers, stemlines, baseline) = plt.stem(self._perc,\
@@ -148,7 +141,12 @@ class RENT_Base(ABC):
 
         Returns
         -------
-        K x # features dataframe
+        A data frame holding weight distribution for each feature. 
+        Weights were collected across K models in the ensemble.
+        
+        rows: represents weights of one model
+        columns: represents weights across models in ensemble for each feature
+
         """
         weights_df = pd.DataFrame()
         for k in self.weight_dict.keys():
@@ -159,25 +157,39 @@ class RENT_Base(ABC):
         return(weights_df)
     
         
-    def plot_object_PCA(self, group=0):
+    def plot_object_PCA(self, cl=0):
         """
-         Think about further return values (cumulated variance dataframes,...)
-         Define self.incorrect_labels for regression problem. Data column names
-         must not be a value range
+        Applies principal component analysis on data containing only selected features.
+
+        For classification:
+            - user may select from the following:
+                - PCA on class 0
+                - PCA on class 1 
+                - PCA on both classes
+            - colouring of PCA scores depends on number of misclassfications across
+              ensemble predictions.
+        
+        For regression:
+        PCA applied to all samples. Colouring by average absolute error across
+        ensemble predictions.
 
         Parameters
         ----------
-        group : <int> or <character>
-            For classification problem: <int> 0 or 1 for class 0
-            or class 1; 'both' for both classes.
-            For regression...
+        cl : <int> or <str>
+            - For classification problem: 
+                - <int>: 0 or 1 for class 0 or class 1, respectively; 
+                - <str>: 'both' for both classes.
+            
+            - For regression problem:
+                - <str>: 'continuous'
+
 
         Returns
         -------
         None.
 
         """
-        if group != 'continuous':
+        if cl != 'continuous':
             dat = pd.merge(self.data, self.incorrect_labels.iloc[:,[1,-1]], \
                                  left_index=True, right_index=True)
             variables = list(self.sel_var)
@@ -188,12 +200,12 @@ class RENT_Base(ABC):
             variables = list(self.sel_var)
             variables.extend([-1])
 
-        if group == 'both' or group == 'continuous':
+        if cl == 'both' or cl == 'continuous':
             data = dat.iloc[:,variables]
         else:
-            data = dat.iloc[np.where(dat.iloc[:,-2]==group)[0],variables]
+            data = dat.iloc[np.where(dat.iloc[:,-2]==cl)[0],variables]
             
-        if group != 'continuous':
+        if cl != 'continuous':
             data = data.sort_values(by='% incorrect')
 
             pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-2].values, \
@@ -217,17 +229,17 @@ class RENT_Base(ABC):
         ax.set_facecolor('silver')
         
         # plot
-        if group == 0:
+        if cl == 0:
             plt.scatter(scores['PC1'], scores['PC2'], c= scores['coloring'], 
                         cmap='Greens')
             cbar = plt.colorbar()
             cbar.set_label('% incorrect predicted class 0')
-        elif group == 1:
+        elif cl == 1:
             plt.scatter(scores['PC1'], scores['PC2'], c= scores['coloring'], 
                         cmap='Reds')
             cbar = plt.colorbar()
             cbar.set_label('% incorrect predicted class 1')
-        elif group == 'both':
+        elif cl == 'both':
             zeroes = np.where(data.iloc[:,-2]==0)[0]
             ones = np.where(data.iloc[:,-2]==1)[0]
 
@@ -281,7 +293,7 @@ class RENT_Base(ABC):
                 plt.scatter(scores.iloc[i,0], scores.iloc[i,1],
                             marker=mlist[i], c=col_list[i])
                             
-        elif group == 'continuous':
+        elif cl == 'continuous':
             plt.scatter(scores.iloc[:,0], scores.iloc[:,1], 
                         c=scores.iloc[:,-1],
                         cmap='YlOrRd')
@@ -294,10 +306,26 @@ class RENT_Base(ABC):
         
         
     def get_enetParam_matrices(self):
+        """
+        Returns
+        -------
+        Returns three pandas data frames showing result for all combinations
+        of l1_ratio and C.
+
+        dataFrame_1: holds average scores for predictive performance
+        dataFrame_2: holds average percentage of how many feature weights were set to zero
+        dataFrame_3: holds harmonic means based from values of dataFrame_1 and dataFrame_2
+        """
         # return scores, zeroes,.. matrices
         return self._scores_df, self._zeroes_df, self._combination
     
     def get_enet_params(self):
+        """
+        Returns
+        -------
+        A tuple holding (C, l1_ratio) for the best average predictive performance. This
+        combination of C l1_ratio will be used in subsequent class methods.
+        """
         return self._best_C, self._best_l1_ratio
     
     def set_enet_params(self, C, l1):

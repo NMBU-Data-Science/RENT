@@ -78,6 +78,9 @@ class RENT_Base(ABC):
         Numpy array holduing indices of selected features.
 
         """
+        if not hasattr(self, '_best_C'):
+            sys.exit('Run train() first!')
+            
         weight_list = []
         #Loop through all K models
         for K in range(self.K):
@@ -116,6 +119,8 @@ class RENT_Base(ABC):
         Summary statistic of the selection criteria tau_1, tau_2 and tau_3
         for each feature. Also prints out summary statistic.
         """
+        if not hasattr(self, 'summary_df'):
+            sys.exit('Run selectFeatures() first!')
         return self.summary_df
         
     def plot_selection_frequency(self):
@@ -126,6 +131,9 @@ class RENT_Base(ABC):
         -------
         None
         """
+        if not hasattr(self, '_perc'):
+            sys.exit('Run selectFeatures() first!')
+            
         plt.figure(figsize=(10, 7))
         (markers, stemlines, baseline) = plt.stem(self._perc,\
         use_line_collection=True)
@@ -148,6 +156,9 @@ class RENT_Base(ABC):
         columns: represents weights across models in ensemble for each feature
 
         """
+        if not hasattr(self, 'weight_dict'):
+            sys.exit('Run train() first!')
+            
         weights_df = pd.DataFrame()
         for k in self.weight_dict.keys():
             if k[0] == self._best_C and k[1] == self._best_l1_ratio:
@@ -189,6 +200,13 @@ class RENT_Base(ABC):
         None.
 
         """
+        if cl not in [0, 1, 'both', 'continuous']:
+            sys.exit(" 'group' must be either 0, 1, 'both' or 'continuous'")
+        if not hasattr(self, 'sel_var'):
+            sys.exit('Run selectFeatures() first!')
+        if not hasattr(self, 'incorrect_labels'):
+            sys.exit('Run summary_objects() first!')
+            
         if cl != 'continuous':
             dat = pd.merge(self.data, self.incorrect_labels.iloc[:,[1,-1]], \
                                  left_index=True, right_index=True)
@@ -316,7 +334,8 @@ class RENT_Base(ABC):
         dataFrame_2: holds average percentage of how many feature weights were set to zero
         dataFrame_3: holds harmonic means based from values of dataFrame_1 and dataFrame_2
         """
-        # return scores, zeroes,.. matrices
+        if not hasattr(self, 'weight_dict'):
+            sys.exit('Run train() first!')
         return self._scores_df, self._zeroes_df, self._combination
     
     def get_enet_params(self):
@@ -326,6 +345,8 @@ class RENT_Base(ABC):
         A tuple holding (C, l1_ratio) for the best average predictive performance. This
         combination of C l1_ratio will be used in subsequent class methods.
         """
+        if not hasattr(self, '_best_C'):
+            sys.exit('Run train() first!')
         return self._best_C, self._best_l1_ratio
     
     def set_enet_params(self, C, l1):
@@ -400,6 +421,25 @@ class RENT_Classification(RENT_Base):
                  parameter_selection=True, poly='OFF', 
                  testsize_range=(0.2, 0.6), scoring='accuracy', 
                  method='logreg', K=5, verbose = 0):
+        
+        if any(c < 0 for c in C):
+            sys.exit('C values must not be negative!')
+        if any(l < 0 for l in l1_ratios) or any(l > 1 for l in l1_ratios):
+            sys.exit('l1 ratios must be in [0,1]!')
+        if parameter_selection not in [True, False]:
+            sys.exit('parameter_selection must be True or False!')
+        if poly not in ['ON', 'ON_only_interactions', 'OFF']:
+            sys.exit('Invalid poly parameter!')
+        # for testsize range criteria should be added.
+        if scoring not in ['accuracy', 'f1', 'mcc']:
+            sys.exit('Invalid scoring!')
+        if method not in ['logreg', 'linSVC']:
+            sys.exit('Invalid method')
+        if K<=0:
+            sys.exit('Invalid K!')
+        if K<10:
+            # does not show warning...
+            warnings.warn('Attention: K is very small!', DeprecationWarning)
         
         # Print parameters for checking
         print('data dimension:', np.shape(data), ' data type:', type(data))
@@ -836,8 +876,8 @@ class RENT_Classification(RENT_Base):
         This method computes a summary of classifications across all models.
         Contains information on how often a sample has been mis-classfied.
         """
-        
-        #check that train has been run before
+        if not hasattr(self, '_best_C'):
+            sys.exit('Run train() first!')
 
         self.incorrect_labels = pd.DataFrame({'# test':np.repeat\
                                       (0, np.shape(self.data)[0]),
@@ -870,6 +910,9 @@ class RENT_Classification(RENT_Base):
     
     
     def get_object_probabilities(self):
+        
+        if not hasattr(self, 'pp_data'):
+            sys.exit('Run train() first!')
         # predicted probabilities only if Logreg
         if self.method != 'logreg':
             return warnings.warn('Classification method must be "logreg"!')
@@ -907,6 +950,8 @@ class RENT_Classification(RENT_Base):
         None.
 
         """
+        if not hasattr(self, '_best_C'):
+            sys.exit('Run train() first!')
         # different binning schemata
         # https://www.answerminer.com/blog/binning-guide-ideal-histogram
         target_objects = pd.DataFrame(self.target)
@@ -968,7 +1013,8 @@ class RENT_Classification(RENT_Base):
         None.
 
         """
-        
+        if not hasattr(self, 'sel_var'):
+            sys.exit('Run selectFeatures() first!')
         
         # RENT prediction
         sc = StandardScaler()
@@ -1116,6 +1162,21 @@ class RENT_Regression(RENT_Base):
                  poly='OFF', testsize_range=(0.2, 0.6),
                  K=5,  verbose = 0):
         
+        if any(c < 0 for c in C):
+            sys.exit('C values must not be negative!')
+        if any(l < 0 for l in l1_ratios) or any(l > 1 for l in l1_ratios):
+            sys.exit('l1 ratios must be in [0,1]!')
+        if parameter_selection not in [True, False]:
+            sys.exit('parameter_selection must be True or False!')
+        if poly not in ['ON', 'ON_only_interactions', 'OFF']:
+            sys.exit('Invalid poly parameter!')
+        # for testsize range criteria is missing.
+        if K<=0:
+            sys.exit('Invalid K!')
+        if K<10:
+            # does not show warning...
+            warnings.warn('Attention: K is very small!', DeprecationWarning)
+        
         # Print parameters for checking
         print('data dimension:', np.shape(data), ' data type:', type(data))
         print('target dimension', np.shape(target))
@@ -1234,10 +1295,6 @@ class RENT_Regression(RENT_Base):
         None.
 
         """
-            
-        # if len(np.shape(labels)) == 2:
-        #     labels = labels.squeeze()
-        
         skf = KFold(n_splits=n_splits, random_state=0, shuffle=True)
         
         scores_df = pd.DataFrame(np.zeros, index=l1_params, columns=C_params)
@@ -1487,6 +1544,9 @@ class RENT_Regression(RENT_Base):
         None.
 
         """
+        if not hasattr(self, '_best_C'):
+            sys.exit('Run train() first!')
+            
         self.incorrect_labels = pd.DataFrame({'# test':np.repeat\
                                       (0, np.shape(self.data)[0]),
                                       'average abs error':np.repeat\
@@ -1526,6 +1586,8 @@ class RENT_Regression(RENT_Base):
         None.
 
         """
+        if not hasattr(self, '_histogram_data'):
+            sys.exit('Run summary_objects() first!')
         return self._histogram_data
         
     def plot_object_errors(self, object_id, binning='auto', lower=0,
@@ -1553,6 +1615,8 @@ class RENT_Regression(RENT_Base):
         None.
 
         """
+        if not hasattr(self, '_histogram_data'):
+            sys.exit('Run summary_objects() first!')
         # different binning schemata
         # https://www.answerminer.com/blog/binning-guide-ideal-histogram
         for obj in object_id:
@@ -1601,7 +1665,8 @@ class RENT_Regression(RENT_Base):
         None.
 
         """
-        
+        if not hasattr(self, '_selv_var'):
+            sys.exit('Run selectFeatures() first!')
         sc = StandardScaler()
         train_RENT = sc.fit_transform(self.data.iloc[:,self.sel_var])
         test_RENT = sc.transform(test_data.loc[:, self.sel_var])

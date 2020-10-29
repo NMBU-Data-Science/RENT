@@ -195,7 +195,8 @@ class RENT_Base(ABC):
             
             - For regression problem:
                 - <str>: 'continuous'
-
+        comp1: <int> First component to plot
+        comp2: <int> Second component to plot
 
         Returns
         -------
@@ -437,7 +438,7 @@ class RENT_Base(ABC):
 class RENT_Classification(RENT_Base):
     """
     This class carries out repeated elastic net feature selection on a given
-    binary classification or regression dataset. Feature selection is done on
+    binary classification dataset. Feature selection is done on
     multiple train test splits. The user can initiate interactions between 
     features that are included in the dataset and as such introduce 
     non-linearities.
@@ -445,38 +446,58 @@ class RENT_Classification(RENT_Base):
     INPUT
     -----
     
-    data: numpy array
+    data: <numpy array> or <pandas dataframe>
+        Dataset on which feature selection shall be performed. 
+        Dimension according to the paper: I_train x N
     
-    target: numpy array
+    target: <numpy array> or <pandas dataframe>
+        Response variable of data. 
+        Dimension: I_train x 1
     
-    feat_names: list holding feature names
+    feat_names: <list> 
+        List holding feature names. Preferably a list of string values.
     
-    scale: boolean, default=True
+    C: <list of int or float values>
+        List holding regularisation parameters for K models. The lower, 
+        the stronger the regularization is .
     
-    C: list holding regularisation parameters for model
+    l1_ratios: <list of int or float values>
+        List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
+        pure l2 use 0, for pure l1 use 1. 
     
-    l1_ratios: list holding ratios between l1 and l2 penalty
+    poly: <str>
+        - 'OFF', no feature interaction
+        - 'ON', feature interaction and squared features (2-polynoms)
+        - 'ON_only_interactions', (only feature interactions, no squared features)
+                        
+        
+    testsize_range: <tuple float> 
+         Range of random proportion of dataset toinclude in test set,
+         low and high are floats between 0 and 1, default (0.2, 0.6).
+         Testsize can be fixed by setting low and high to the same value.
+                    
     
-    poly: str, options: 'OFF', no feature interaction
-                        'ON', (includes squared of features)
-                        'ON_only_interactions', (only interactions, 
-                                                 no squared features)
+    scoring: <str>
+        The metric to evaluate K models. Default: "mcc".
+        options: 
+            -'accuracy':  Accuracy
+            -'f1': F1-score
+            -'precision': Precision
+            -'recall': Recall
+            -'mcc': Matthews Correlation Coefficient
     
-    testsize_range: tuple (low, high) range of random proportion of dataset to
-    include in test set,
-                    low and high are floats between 0 and 1, 
-                    default (0.2, 0.6)
+    classifier: <str>
+         options: 
+             - 'logreg': Logistic Regression
     
-    scoring: str, options: 'accuracy', 'f1', 'precision', 'recall', 'matthews'
+    K: <int>
+        Number of unique train-test splits. Default: 100.
     
-    classifier: str, options: 'logreg' for logistic regression
-                       'linearSVC' for linear support vector classifier
+    scale:<boolean>
+        Scale each of the K train datasets. Default: True
     
-    K: int, number of unique train-test splits
-    
-    scale: True/False: scale each of the K train datasets
-    
-    verbose: print something
+    verbose: <int>
+        Track the train process if value > 0.
     
     OUTPUT
     ------
@@ -486,7 +507,7 @@ class RENT_Classification(RENT_Base):
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
                  parameter_selection=True, poly='OFF', 
                  testsize_range=(0.2, 0.6), scoring='accuracy', 
-                 method='logreg', K=5, scale = True, verbose = 0):
+                 method='logreg', K=100, scale = True, verbose = 0):
         
         if any(c < 0 for c in C):
             sys.exit('C values must not be negative!')
@@ -599,8 +620,7 @@ class RENT_Classification(RENT_Base):
             sys.exit('Value for paramter "poly" not regcognised.')
         
         if self.parameter_selection == True:
-            self.C, self.l1_ratios = self.par_selection(C_params=C, 
-                                                              l1_params=l1_ratios)
+            self.C, self.l1_ratios = self.par_selection(C=C, l1_ratios=l1_ratios)
             self.C = [self.C]
             self.l1_ratios = [self.l1_ratios]
         else:
@@ -609,8 +629,7 @@ class RENT_Classification(RENT_Base):
             
     def run_parallel(self, K):
         """
-        Parallel computation of for loops. Parallelizes the number of models (K)
-        as this is the parameter with most varying values.
+        Parallel computation of K * C * l1_ratios models. 
         
         INPUT
         -----
@@ -660,13 +679,13 @@ class RENT_Classification(RENT_Base):
                                             random_state=0).\
                                             fit(X_train_std, y_train)
                     
-                elif self.method == 'linSVC':
-                    model = LinearSVC(penalty='l1',
-                                    C=C,
-                                    dual=False,
-                                    max_iter=8000,
-                                    random_state=0).\
-                                    fit(X_train_std, y_train)
+                # elif self.method == 'linSVC':
+                #     model = LinearSVC(penalty='l1',
+                #                     C=C,
+                #                     dual=False,
+                #                     max_iter=8000,
+                #                     random_state=0).\
+                #                     fit(X_train_std, y_train)
                 else:
                     sys.exit('No valid classification method.')
                     
@@ -836,50 +855,55 @@ class RENT_Classification(RENT_Base):
         self._best_C = self._combination.columns[np.nanmin(best_col)]
         
     def par_selection(self, 
-                        C_params, 
-                        l1_params, 
+                        C, 
+                        l1_ratios, 
                         n_splits=5, 
                         testsize_range=(0.25,0.25)):
         """
-        
+        Preselect C and l1 ratio with Cross Validation.
 
         Parameters
         ----------
-        C_params : TYPE
-            DESCRIPTION.
-        l1_params : TYPE
-            DESCRIPTION.
-        n_splits : TYPE, optional
-            DESCRIPTION. The default is 5.
-        testsize_range : TYPE, optional
-            DESCRIPTION. The default is (0.25,0.25).
+        C: <list of int or float values>
+        List holding regularisation parameters for K models. The lower, the
+        stronger the regularization is.
+    
+        l1_ratios: <list of int or float values>
+            List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
+            pure l2 use 0, for pure l1 use 1. 
+        n_splits : <int>
+            Number of cross validation folds. The default is 5.
+        testsize_range: <tuple float> 
+            Range of random proportion of dataset toinclude in test set,
+            low and high are floats between 0 and 1, default (0.2, 0.6).
+            Testsize can be fixed by setting low and high to the same value.
 
         Returns
         -------
-        None.
+        A tuple. First entry: suggested C parameter.
+                 Second entry: suggested l1 ratio.
 
         """
         
         skf = StratifiedKFold(n_splits=n_splits, random_state=0, shuffle=True)
         
-        scores_df = pd.DataFrame(np.zeros, index=l1_params, columns=C_params)
-        zeroes_df = pd.DataFrame(np.zeros, index=l1_params, columns=C_params)
+        scores_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
+        zeroes_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
         
         
         def run_parallel(l1):
             """
-            Parallel computation of for loops. Parallelizes the number of tt_splits
-            as this is the parameter with most varying values.
+            Parallel computation of for n_splits * C * l1_ratios models. 
             
             INPUT
             -----
-            tt_split: range of train-test splits
+            l1: current l1 ratio in the parallelization framework.
             
             OUTPUT
             ------
             None 
             """
-            for reg in C_params:
+            for reg in C:
                 scores = list()
                 zeroes = list()
                 for train, test in skf.split(self.data, self.target):
@@ -931,7 +955,7 @@ class RENT_Classification(RENT_Base):
         self._zeroes_df_cv.columns.name = 'Zeroes'
         
         Parallel(n_jobs=-1, verbose=0, backend="threading")(
-             map(delayed(run_parallel), l1_params))  
+             map(delayed(run_parallel), l1_ratios))  
             
         if len(np.unique(scores_df.values)) ==1:
             best_row, best_col = np.where(zeroes_df.values == \
@@ -961,10 +985,15 @@ class RENT_Classification(RENT_Base):
                 
         
     def summary_objects(self):
-        # incorrect probabilities dataframe
         """
-        This method computes a summary of classifications across all models.
+        This method computes a summary of classifications for each sample
+        across all models, where the sample was part of the test set.
         Contains information on how often a sample has been mis-classfied.
+
+        Returns
+        -------
+        <pandas dataframe>
+
         """
         if not hasattr(self, '_best_C'):
             sys.exit('Run train() first!')
@@ -1000,7 +1029,14 @@ class RENT_Classification(RENT_Base):
     
     
     def get_object_probabilities(self):
-        
+        """
+        Logistic Regression probabilities for each object.
+
+        Returns
+        -------
+        <pandas dataframe>
+
+        """
         if not hasattr(self, 'pp_data'):
             sys.exit('Run train() first!')
         # predicted probabilities only if Logreg
@@ -1018,22 +1054,27 @@ class RENT_Classification(RENT_Base):
     def plot_object_probabilities(self, object_id, binning='auto', lower=0,
                                   upper=1, kde=False, norm_hist=False):
         """
-        Histograms of predicted probabilities. Check scalings etc.
+        Histograms of predicted probabilities.
 
         Parameters
         ----------
-        object_id : TYPE
+        object_id : <list of int or str>
+            Samples/Objects whos histograms shall be plotted.
             DESCRIPTION.
-        binning : TYPE, optional
-            DESCRIPTION. The default is 'auto'.
-        lower : TYPE, optional
-            DESCRIPTION. The default is 0.
-        upper : TYPE, optional
-            DESCRIPTION. The default is 1.
-        kde : TYPE, optional
-            DESCRIPTION. The default is False.
-        norm_hist : TYPE, optional
-            DESCRIPTION. The default is False.
+        binning : <str>
+            Histogram binning type. 
+            Source:https://www.answerminer.com/blog/binning-guide-ideal-histogram 
+            Options are: 'auto' 'rice' and 'sturges'. The default is 'auto'. 
+        lower : <float>
+            Lower bound of teh x-axis. The default is 0.
+        upper : <float>
+            Upper bound of the x-axis. The default is 1.
+        kde : <boolean>
+            Kernel density estimation. Same as seaborn distplot.
+            The default is False.
+        norm_hist : <boolean>
+            Normalize the histogram. Same as seaborn distplot.
+            The default is False.
 
         Returns
         -------
@@ -1087,16 +1128,29 @@ class RENT_Classification(RENT_Base):
     def feasibility_study(self, test_data, test_labels, num_drawings, num_permutations,
                           metric='mcc', alpha=0.05):
         """
-        Feasibiliyt study as in paper. p-value has to be added.
+        Feasibiliyt study based on a statistical hypothesis test. 
+        H0: RENT is not better than random feature selection.
 
         Parameters
         ----------
-        test_data : TYPE
-            DESCRIPTION.
-        test_labels K_feas : TYPE
-            DESCRIPTION.
-        metric : TYPE, optional
-            DESCRIPTION. The default is 'mcc'.
+        test_data : <numpy array> or <pandas dataframe>
+            Dataset used to evalute Logistic Models in the feasibility study.
+        test_lables: <numpy array> or <pandas dataframe>
+            Response variable of data.
+        num_drawings: <int>
+            Number of independent feature subset drawings for FS1, see paper.
+        num_permutations: <int>
+            Number of independent test_labels permutations for FS2, see paper.
+        metric: <str>
+        The metric to evaluate K models. Default: "mcc".
+        options: 
+            -'accuracy':  Accuracy
+            -'f1': F1-score 
+            -'precision': Precision
+            -'recall': Recall
+            -'mcc': Matthews Correlation Coefficient
+        alpha: <float>
+            Significance level for hypothesis testing.
 
         Returns
         -------
@@ -1217,7 +1271,7 @@ class RENT_Classification(RENT_Base):
 class RENT_Regression(RENT_Base):
     """
     This class carries out repeated elastic net feature selection on a given
-    binary classification or regression dataset. Feature selection is done on
+    regressionn dataset. Feature selection is done on
     multiple train test splits. The user can initiate interactions between 
     features that are included in the dataset and as such introduce 
     non-linearities.
@@ -1225,35 +1279,44 @@ class RENT_Regression(RENT_Base):
     INPUT
     -----
     
-    data: numpy array
+    data: <numpy array> or <pandas dataframe>
+        Dataset on which feature selection shall be performed. 
+        Dimension according to the paper: I_train x N
     
-    target: numpy array
+    target: <numpy array> or <pandas dataframe>
+        Response variable of data. 
+        Dimension: I_train x 1
     
-    feat_names: list holding feature names
+    feat_names: <list> 
+        List holding feature names. Preferably a list of string values.
     
-    scale: boolean, default=True
+    C: <list of int or float values>
+        List holding regularisation parameters for K models. The lower the 
+        stronger the regularization is. 
     
-    C: list holding regularisation parameters for model
+    l1_ratios: <list of int or float values>
+        List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
+        pure l2 use 0, for pure l1 use 1. 
     
-    l1_ratios: list holding ratios between l1 and l2 penalty
+    poly: <str>
+        - 'OFF', no feature interaction
+        - 'ON', feature interaction and squared features (2-polynoms)
+        - 'ON_only_interactions', (only feature interactions, no squared features)
+                        
+        
+    testsize_range: <tuple float> 
+         Range of random proportion of dataset toinclude in test set,
+         low and high are floats between 0 and 1, default (0.2, 0.6).
+         Testsize can be fixed by setting low and high to the same value.
+
+    K: <int>
+        Number of unique train-test splits. Default: 100.
     
-    poly: str, options: 'OFF', no feature interaction
-                        'ON', (includes squared of features)
-                        'ON_only_interactions', (only interactions, 
-                                                 no squared features)
+    scale:<boolean>
+        Scale each of the K train datasets. Default: True
     
-    testsize_range: tuple (low, high) range of random proportion of dataset to
-    include in test set,
-                    low and high are floats between 0 and 1, 
-                    default (0.2, 0.6)
-    
-    
-    classifier: str, options: 'logreg' for logistic regression
-                       'linearSVC' for linear support vector classifier
-    
-    K: int, number of unique train-test splits
-    
-    verbose: print something
+    verbose: <int>
+        Track the train process if value > 0.
     
     OUTPUT
     ------
@@ -1370,8 +1433,7 @@ class RENT_Regression(RENT_Base):
             
             
         if self.parameter_selection == True:
-            self.C, self.l1_ratios = self.par_selection(C_params=C, 
-                                                              l1_params=l1_ratios)
+            self.C, self.l1_ratios = self.par_selection(C=C, l1_ratios=l1_ratios)
             self.C = [self.C]
             self.l1_ratios = [self.l1_ratios]
         else:
@@ -1380,49 +1442,54 @@ class RENT_Regression(RENT_Base):
     
             
     def par_selection(self, 
-                    C_params, 
-                    l1_params, 
+                    C, 
+                    l1_ratios, 
                     n_splits=5, 
                     testsize_range=(0.25,0.25)):
         """
-        
+        Preselect C and l1 ratio with Cross Validation.
 
         Parameters
         ----------
-        C_params : TYPE
-            DESCRIPTION.
-        l1_params : TYPE
-            DESCRIPTION.
-        n_splits : TYPE, optional
-            DESCRIPTION. The default is 5.
-        testsize_range : TYPE, optional
-            DESCRIPTION. The default is (0.25,0.25).
+        C: <list of int or float values>
+        List holding regularisation parameters for K models. The lower, the
+        stronger the regularization is.
+    
+        l1_ratios: <list of int or float values>
+            List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
+            pure l2 use 0, for pure l1 use 1. 
+        n_splits : <int>
+            Number of cross validation folds. The default is 5.
+        testsize_range: <tuple float> 
+            Range of random proportion of dataset toinclude in test set,
+            low and high are floats between 0 and 1, default (0.2, 0.6).
+            Testsize can be fixed by setting low and high to the same value.
 
         Returns
         -------
-        None.
+        A tuple. First entry: suggested C parameter.
+                 Second entry: suggested l1 ratio.
 
         """
         skf = KFold(n_splits=n_splits, random_state=0, shuffle=True)
         
-        scores_df = pd.DataFrame(np.zeros, index=l1_params, columns=C_params)
-        zeroes_df = pd.DataFrame(np.zeros, index=l1_params, columns=C_params)
+        scores_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
+        zeroes_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
         
         
         def run_parallel(l1):
             """
-            Parallel computation of for loops. Parallelizes the number of tt_splits
-            as this is the parameter with most varying values.
+            Parallel computation of K * C * l1_ratios models. 
             
             INPUT
             -----
-            tt_split: range of train-test splits
+            K: range of train-test splits
             
             OUTPUT
             ------
             None 
             """
-            for reg in C_params:
+            for reg in C:
                 scores = list()
                 zeroes = list()
                 for train, test in skf.split(self.data, self.target):
@@ -1470,7 +1537,7 @@ class RENT_Regression(RENT_Base):
     
         
         Parallel(n_jobs=-1, verbose=0, backend="threading")(
-             map(delayed(run_parallel), l1_params))  
+             map(delayed(run_parallel), l1_ratios))  
         
         if len(np.unique(scores_df.values)) ==1:
             best_row, best_col = np.where(zeroes_df.values == \
@@ -1671,11 +1738,12 @@ class RENT_Regression(RENT_Base):
     
     def summary_objects(self):
         """
-        
+        This method computes a summary of average absolute errors for each sample
+        across all K models, where the sample was part of at least one test set.
 
         Returns
         -------
-        None.
+        <pandas dataframe>
 
         """
         if not hasattr(self, '_best_C'):
@@ -1713,11 +1781,12 @@ class RENT_Regression(RENT_Base):
                 
     def get_object_errors(self):
         """
-        
+        Absolute errors for samples which were at least once in a test-set among K
+        models
 
         Returns
         -------
-        None.
+        pandas dataframe
 
         """
         if not hasattr(self, '_histogram_data'):
@@ -1727,22 +1796,27 @@ class RENT_Regression(RENT_Base):
     def plot_object_errors(self, object_id, binning='auto', lower=0,
                                   upper=100, kde=False, norm_hist=False):
         """
-        Histograms of predicted probabilities. Check scalings etc.
+        Histograms of absolute errors.
 
         Parameters
         ----------
-        object_id : TYPE
+        object_id : <list of int or str>
+            Samples/Objects whos histograms shall be plotted.
             DESCRIPTION.
-        binning : TYPE, optional
-            DESCRIPTION. The default is 'auto'.
-        lower : TYPE, optional
-            DESCRIPTION. The default is 0.
-        upper : TYPE, optional
-            DESCRIPTION. The default is 1.
-        kde : TYPE, optional
-            DESCRIPTION. The default is False.
-        norm_hist : TYPE, optional
-            DESCRIPTION. The default is False.
+        binning : <str>
+            Histogram binning type. 
+            Source:https://www.answerminer.com/blog/binning-guide-ideal-histogram 
+            Options are: 'auto' 'rice' and 'sturges'. The default is 'auto'. 
+        lower : <float>
+            Lower bound of teh x-axis. The default is 0.
+        upper : <float>
+            Upper bound of the x-axis. The default is 1.
+        kde : <boolean>
+            Kernel density estimation. Same as seaborn distplot.
+            The default is False.
+        norm_hist : <boolean>
+            Normalize the histogram. Same as seaborn distplot.
+            The default is False.
 
         Returns
         -------
@@ -1784,16 +1858,29 @@ class RENT_Regression(RENT_Base):
     def feasibility_study(self, test_data, test_labels, 
                           num_drawings, num_permutations, alpha=0.05):
         """
-        Feasibiliyt study as in paper. p-value has to be added.
+        Feasibiliyt study based on a statistical hypothesis test. 
+        H0: RENT is not better than random feature selection.
 
         Parameters
         ----------
-        test_data : TYPE
-            DESCRIPTION.
-        test_labels K_feas : TYPE
-            DESCRIPTION.
-        metric : TYPE, optional
-            DESCRIPTION. The default is 'R2'.
+        test_data : <numpy array> or <pandas dataframe>
+            Dataset used to evalute Logistic Models in the feasibility study.
+        test_lables: <numpy array> or <pandas dataframe>
+            Response variable of data.
+        num_drawings: <int>
+            Number of independent feature subset drawings for FS1, see paper.
+        num_permutations: <int>
+            Number of independent test_labels permutations for FS2, see paper.
+        metric: <str>
+        The metric to evaluate K models. Default: "mcc".
+        options: 
+            -'accuracy':  Accuracy
+            -'f1': F1-score 
+            -'precision': Precision
+            -'recall': Recall
+            -'mcc': Matthews Correlation Coefficient
+        alpha: <float>
+            Significance level for hypothesis testing.
 
         Returns
         -------

@@ -38,7 +38,8 @@ class RENT_Base(ABC):
     """
     
     @abstractmethod
-    def feasibility_study(self, test_data, test_labels, K_feas):
+    def feasibility_study(self, test_data, test_labels, num_drawings, 
+                          num_permutations):
         pass
     
     @abstractmethod
@@ -50,7 +51,7 @@ class RENT_Base(ABC):
         pass
     
     @abstractmethod
-    def parameter_selection(self, C_params, l1_params, n_splits, testsize_range):
+    def par_selection(self, C_params, l1_params, n_splits, testsize_range):
         pass
     
     @abstractmethod
@@ -78,6 +79,9 @@ class RENT_Base(ABC):
         Numpy array holduing indices of selected features.
 
         """
+        if not hasattr(self, '_best_C'):
+            sys.exit('Run train() first!')
+            
         weight_list = []
         #Loop through all K models
         for K in range(self.K):
@@ -116,6 +120,8 @@ class RENT_Base(ABC):
         Summary statistic of the selection criteria tau_1, tau_2 and tau_3
         for each feature. Also prints out summary statistic.
         """
+        if not hasattr(self, 'summary_df'):
+            sys.exit('Run selectFeatures() first!')
         return self.summary_df
         
     def plot_selection_frequency(self):
@@ -126,6 +132,9 @@ class RENT_Base(ABC):
         -------
         None
         """
+        if not hasattr(self, '_perc'):
+            sys.exit('Run selectFeatures() first!')
+            
         plt.figure(figsize=(10, 7))
         (markers, stemlines, baseline) = plt.stem(self._perc,\
         use_line_collection=True)
@@ -148,16 +157,20 @@ class RENT_Base(ABC):
         columns: represents weights across models in ensemble for each feature
 
         """
+        if not hasattr(self, 'weight_dict'):
+            sys.exit('Run train() first!')
+            
         weights_df = pd.DataFrame()
         for k in self.weight_dict.keys():
             if k[0] == self._best_C and k[1] == self._best_l1_ratio:
                 weights_df = weights_df.append( \
                         pd.DataFrame(self.weight_dict[k]))
-        weights_df.index = list(range(self.K))
+        weights_df.index = ['K({0})'.format(x+1) for x in range(self.K)]
+        weights_df.columns = self.feat_names
         return(weights_df)
     
         
-    def plot_object_PCA(self, cl=0):
+    def plot_object_PCA(self, cl=0, comp1=1, comp2=2):
         """
         Applies principal component analysis on data containing only selected features.
 
@@ -182,13 +195,21 @@ class RENT_Base(ABC):
             
             - For regression problem:
                 - <str>: 'continuous'
-
+        comp1: <int> First component to plot
+        comp2: <int> Second component to plot
 
         Returns
         -------
         None.
 
         """
+        if cl not in [0, 1, 'both', 'continuous']:
+            sys.exit(" 'group' must be either 0, 1, 'both' or 'continuous'")
+        if not hasattr(self, 'sel_var'):
+            sys.exit('Run selectFeatures() first!')
+        if not hasattr(self, 'incorrect_labels'):
+            sys.exit('Run summary_objects() first!')
+            
         if cl != 'continuous':
             dat = pd.merge(self.data, self.incorrect_labels.iloc[:,[1,-1]], \
                                  left_index=True, right_index=True)
@@ -199,7 +220,7 @@ class RENT_Base(ABC):
                                      left_index=True, right_index=True)
             variables = list(self.sel_var)
             variables.extend([-1])
-
+    
         if cl == 'both' or cl == 'continuous':
             data = dat.iloc[:,variables]
         else:
@@ -207,69 +228,114 @@ class RENT_Base(ABC):
             
         if cl != 'continuous':
             data = data.sort_values(by='% incorrect')
-
             pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-2].values, \
                                        Xstand=True, cvType=['loo'])
-
         else:
             pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-1].values, \
                                        Xstand=True, cvType=['loo'])
-                
                 
         scores = pd.DataFrame(pca_model.X_scores())
         scores.index = list(data.index)
         scores.columns = ['PC{0}'.format(x+1) for x in \
                                  range(pca_model.X_scores().shape[1])]
         scores['coloring'] = data.iloc[:,-1]
-
+    
         fig, ax = plt.subplots()
-        ax.set_xlabel('PC1')
-        ax.set_ylabel('PC2')
+        ax.set_xlabel('PC' + str(comp1))
+        ax.set_ylabel('PC' + str(comp2))
         ax.set_title('Scatterplot')
         ax.set_facecolor('silver')
         
+        # Find maximum and minimum scores along the two components
+        xMax = max(scores.iloc[:, (comp1-1)])
+        xMin = min(scores.iloc[:, (comp1-1)])
+    
+        yMax = max(scores.iloc[:, (comp2-1)])
+        yMin = min(scores.iloc[:, (comp2-1)])
+
+        # Set limits for lines representing the axes.
+        # x-axis
+        if abs(xMax) >= abs(xMin):
+            extraX = xMax * .4
+            limX = xMax * .3
+    
+        elif abs(xMax) < abs(xMin):
+            extraX = abs(xMin) * .4
+            limX = abs(xMin) * .3
+        
+        if abs(yMax) >= abs(yMin):
+            extraY = yMax * .4
+            limY = yMax * .3
+    
+        elif abs(yMax) < abs(yMin):
+            extraY = abs(yMin) * .4
+            limY = abs(yMin) * .3
+    
+        xMaxLine = xMax + extraX
+        xMinLine = xMin - extraX
+    
+        yMaxLine = yMax + extraY
+        yMinLine = yMin - extraY
+    
+        ax.plot([0, 0], [yMaxLine, yMinLine], color='0.4', linestyle='dashed',
+                linewidth=1)
+        ax.plot([xMinLine, xMaxLine], [0, 0], color='0.4', linestyle='dashed',
+                linewidth=1)
+    
+        # Set limits for plot regions.
+        xMaxLim = xMax + limX
+        xMinLim = xMin - limX
+    
+        yMaxLim = yMax + limY
+        yMinLim = yMin - limY
+    
+        ax.set_xlim(xMinLim, xMaxLim)
+        ax.set_ylim(yMinLim, yMaxLim)
+        
         # plot
         if cl == 0:
-            plt.scatter(scores['PC1'], scores['PC2'], c= scores['coloring'], 
+            plt.scatter(scores['PC'+str(comp1)], 
+                        scores['PC'+str(comp2)], 
+                        c= scores['coloring'], 
                         cmap='Greens')
             cbar = plt.colorbar()
             cbar.set_label('% incorrect predicted class 0')
         elif cl == 1:
-            plt.scatter(scores['PC1'], scores['PC2'], c= scores['coloring'], 
+            plt.scatter(scores['PC'+str(comp1)], 
+                        scores['PC'+str(comp2)], 
+                        c= scores['coloring'], 
                         cmap='Reds')
             cbar = plt.colorbar()
             cbar.set_label('% incorrect predicted class 1')
         elif cl == 'both':
             zeroes = np.where(data.iloc[:,-2]==0)[0]
             ones = np.where(data.iloc[:,-2]==1)[0]
-
-            plt.scatter(scores.iloc[zeroes,0], 
-                        scores.iloc[zeroes,1], 
+    
+            plt.scatter(scores.iloc[zeroes,(comp1-1)], 
+                        scores.iloc[zeroes,(comp2-1)], 
                         c= scores.iloc[zeroes,-1], 
                         cmap='Greens',
                         marker='*',
                         alpha=0.5)
             cbar = plt.colorbar()
             cbar.set_label('% incorrect predicted class 0')
-            plt.scatter(scores.iloc[ones,0], 
-                        scores.iloc[ones,1], 
+            plt.scatter(scores.iloc[ones,(comp1-1)], 
+                        scores.iloc[ones,(comp2-1)], 
                         c= scores.iloc[ones,-1], 
                         cmap='Reds',
                         alpha=0.5)
             cbar = plt.colorbar()
             cbar.set_label('% incorrect predicted class 1')
             
-            
             mlist = []
             col_list = []
-
+    
             for i in range(len(data.index)):
                 if data.iloc[i,-2]==0:
                     mlist.append("*")
                 else:
                     mlist.append("o")
-        
-
+    
             for i in range(len(data.index)):
                 if data.iloc[i,-2]==0 and data.iloc[i,-1]==0:
                     col_list.append('honeydew')
@@ -288,20 +354,20 @@ class RENT_Base(ABC):
                     col_list.append('maroon')
                 else:
                     col_list.append(np.nan)
-
+    
             for i in range(len(mlist)):
-                plt.scatter(scores.iloc[i,0], scores.iloc[i,1],
+                plt.scatter(scores.iloc[i,(comp1-1)], scores.iloc[i,(comp2-1)],
                             marker=mlist[i], c=col_list[i])
                             
         elif cl == 'continuous':
-            plt.scatter(scores.iloc[:,0], scores.iloc[:,1], 
+            plt.scatter(scores.iloc[:,(comp1-1)], scores.iloc[:,(comp2-1)], 
                         c=scores.iloc[:,-1],
                         cmap='YlOrRd')
             cbar = plt.colorbar()
             cbar.set_label('average absolute error')
-
+    
         objnames = list(data.index.astype('str'))
-        hopl.plot(pca_model, plots=[1,2,3,4,6], 
+        hopl.plot(pca_model, plots=[1,2,3,4,6], comp = [comp1,comp2],
                   objNames=objnames, XvarNames=list(data.columns[:-2]))
         
         
@@ -316,8 +382,23 @@ class RENT_Base(ABC):
         dataFrame_2: holds average percentage of how many feature weights were set to zero
         dataFrame_3: holds harmonic means based from values of dataFrame_1 and dataFrame_2
         """
-        # return scores, zeroes,.. matrices
+        if not hasattr(self, 'weight_dict'):
+            sys.exit('Run train() first!')
         return self._scores_df, self._zeroes_df, self._combination
+    
+    def get_cv_matrices(self):
+        """
+        
+
+        Returns
+        -------
+        None.
+
+        """
+        if self.parameter_selection == True:
+            return self._scores_df_cv, self._zeroes_df_cv, self._combination_cv
+        else:
+            print("Parameters have not been selected with Cross Validation.")
     
     def get_enet_params(self):
         """
@@ -326,6 +407,8 @@ class RENT_Base(ABC):
         A tuple holding (C, l1_ratio) for the best average predictive performance. This
         combination of C l1_ratio will be used in subsequent class methods.
         """
+        if not hasattr(self, '_best_C'):
+            sys.exit('Run train() first!')
         return self._best_C, self._best_l1_ratio
     
     def set_enet_params(self, C, l1):
@@ -344,6 +427,9 @@ class RENT_Base(ABC):
     def sign_vote(self, arr):
         return np.abs(np.sum(np.sign(arr))) / len(arr)
     
+    def min_max(self, arr):
+        return (arr-np.nanmin(arr)) / (np.nanmax(arr)-np.nanmin(arr))
+    
     def get_runtime(self):
         return self._runtime
 
@@ -352,7 +438,7 @@ class RENT_Base(ABC):
 class RENT_Classification(RENT_Base):
     """
     This class carries out repeated elastic net feature selection on a given
-    binary classification or regression dataset. Feature selection is done on
+    binary classification dataset. Feature selection is done on
     multiple train test splits. The user can initiate interactions between 
     features that are included in the dataset and as such introduce 
     non-linearities.
@@ -360,36 +446,58 @@ class RENT_Classification(RENT_Base):
     INPUT
     -----
     
-    data: numpy array
+    data: <numpy array> or <pandas dataframe>
+        Dataset on which feature selection shall be performed. 
+        Dimension according to the paper: I_train x N
     
-    target: numpy array
+    target: <numpy array> or <pandas dataframe>
+        Response variable of data. 
+        Dimension: I_train x 1
     
-    feat_names: list holding feature names
+    feat_names: <list> 
+        List holding feature names. Preferably a list of string values.
     
-    scale: boolean, default=True
+    C: <list of int or float values>
+        List holding regularisation parameters for K models. The lower, 
+        the stronger the regularization is .
     
-    C: list holding regularisation parameters for model
+    l1_ratios: <list of int or float values>
+        List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
+        pure l2 use 0, for pure l1 use 1. 
     
-    l1_ratios: list holding ratios between l1 and l2 penalty
+    poly: <str>
+        - 'OFF', no feature interaction
+        - 'ON', feature interaction and squared features (2-polynoms)
+        - 'ON_only_interactions', (only feature interactions, no squared features)
+                        
+        
+    testsize_range: <tuple float> 
+         Range of random proportion of dataset toinclude in test set,
+         low and high are floats between 0 and 1, default (0.2, 0.6).
+         Testsize can be fixed by setting low and high to the same value.
+                    
     
-    poly: str, options: 'OFF', no feature interaction
-                        'ON', (includes squared of features)
-                        'ON_only_interactions', (only interactions, 
-                                                 no squared features)
+    scoring: <str>
+        The metric to evaluate K models. Default: "mcc".
+        options: 
+            -'accuracy':  Accuracy
+            -'f1': F1-score
+            -'precision': Precision
+            -'recall': Recall
+            -'mcc': Matthews Correlation Coefficient
     
-    testsize_range: tuple (low, high) range of random proportion of dataset to
-    include in test set,
-                    low and high are floats between 0 and 1, 
-                    default (0.2, 0.6)
+    classifier: <str>
+         options: 
+             - 'logreg': Logistic Regression
     
-    scoring: str, options: 'accuracy', 'f1', 'precision', 'recall', 'matthews'
+    K: <int>
+        Number of unique train-test splits. Default: 100.
     
-    classifier: str, options: 'logreg' for logistic regression
-                       'linearSVC' for linear support vector classifier
+    scale:<boolean>
+        Scale each of the K train datasets. Default: True
     
-    K: int, number of unique train-test splits
-    
-    verbose: print something
+    verbose: <int>
+        Track the train process if value > 0.
     
     OUTPUT
     ------
@@ -399,7 +507,28 @@ class RENT_Classification(RENT_Base):
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
                  parameter_selection=True, poly='OFF', 
                  testsize_range=(0.2, 0.6), scoring='accuracy', 
-                 method='logreg', K=5, verbose = 0):
+                 method='logreg', K=100, scale = True, verbose = 0):
+        
+        if any(c < 0 for c in C):
+            sys.exit('C values must not be negative!')
+        if any(l < 0 for l in l1_ratios) or any(l > 1 for l in l1_ratios):
+            sys.exit('l1 ratios must be in [0,1]!')
+        if parameter_selection not in [True, False]:
+            sys.exit('parameter_selection must be True or False!')
+        if scale not in [True, False]:
+            sys.exit('scale must be True or False!')
+        if poly not in ['ON', 'ON_only_interactions', 'OFF']:
+            sys.exit('Invalid poly parameter!')
+        # for testsize range criteria should be added.
+        if scoring not in ['accuracy', 'f1', 'mcc']:
+            sys.exit('Invalid scoring!')
+        if method not in ['logreg', 'linSVC']:
+            sys.exit('Invalid method')
+        if K<=0:
+            sys.exit('Invalid K!')
+        if K<10:
+            # does not show warning...
+            warnings.warn('Attention: K is very small!', DeprecationWarning)
         
         # Print parameters for checking
         print('data dimension:', np.shape(data), ' data type:', type(data))
@@ -407,6 +536,7 @@ class RENT_Classification(RENT_Base):
         print('regularization parameters C:', C)
         print('elastic net l1_ratios:', l1_ratios)
         print('number of models in ensemble:', K)
+        print('scale:', scale)
         print('classification method:', method)
         print('verbose:', verbose)
 
@@ -418,7 +548,9 @@ class RENT_Classification(RENT_Base):
         self.scoring = scoring
         self.method = method
         self.testsize_range = testsize_range
+        self.scale = scale
         self.verbose = verbose
+        self.parameter_selection = parameter_selection
         
         
         # Check if data is dataframe and add index information
@@ -487,9 +619,8 @@ class RENT_Classification(RENT_Base):
         else:
             sys.exit('Value for paramter "poly" not regcognised.')
         
-        if parameter_selection == True:
-            self.C, self.l1_ratios = self.parameter_selection(C_params=C, 
-                                                              l1_params=l1_ratios)
+        if self.parameter_selection == True:
+            self.C, self.l1_ratios = self.par_selection(C=C, l1_ratios=l1_ratios)
             self.C = [self.C]
             self.l1_ratios = [self.l1_ratios]
         else:
@@ -498,8 +629,7 @@ class RENT_Classification(RENT_Base):
             
     def run_parallel(self, K):
         """
-        Parallel computation of for loops. Parallelizes the number of models (K)
-        as this is the parameter with most varying values.
+        Parallel computation of K * C * l1_ratios models. 
         
         INPUT
         -----
@@ -526,10 +656,14 @@ class RENT_Classification(RENT_Base):
                 # Initialise standard scaler and compute mean and STD from 
                 # training data. 
                 # Transform train and test dataset
-                sc = StandardScaler()
-                sc.fit(X_train)
-                X_train_std = sc.transform(X_train)
-                X_test_std = sc.transform(X_test)
+                if self.scale == True:
+                    sc = StandardScaler()
+                    sc.fit(X_train)
+                    X_train_std = sc.transform(X_train)
+                    X_test_std = sc.transform(X_test)
+                elif self.scale == False:
+                    X_train_std = X_train.copy().values
+                    X_test_std = X_test.copy().values
                 
                 if self.verbose > 0:
                     print('C = ', C, 'l1 = ', l1, ', TT split = ', K)
@@ -545,13 +679,13 @@ class RENT_Classification(RENT_Base):
                                             random_state=0).\
                                             fit(X_train_std, y_train)
                     
-                elif self.method == 'linSVC':
-                    model = LinearSVC(penalty='l1',
-                                    C=C,
-                                    dual=False,
-                                    max_iter=8000,
-                                    random_state=0).\
-                                    fit(X_train_std, y_train)
+                # elif self.method == 'linSVC':
+                #     model = LinearSVC(penalty='l1',
+                #                     C=C,
+                #                     dual=False,
+                #                     max_iter=8000,
+                #                     random_state=0).\
+                #                     fit(X_train_std, y_train)
                 else:
                     sys.exit('No valid classification method.')
                     
@@ -697,23 +831,19 @@ class RENT_Classification(RENT_Base):
                 self._zeroes_df.loc[l1, C] = count
                 
         if len(self.C)>1 or len(self.l1_ratios)>1:
-            normed_scores = pd.DataFrame((self._scores_df-np.nanmin(
-                self._scores_df.values))/ \
-                (np.nanmax(self._scores_df.values)-np.nanmin(
-                    self._scores_df.values)))
-            normed_zeroes = pd.DataFrame((self._zeroes_df-np.nanmin(
-                self._zeroes_df.values))/ \
-                (np.nanmax(self._zeroes_df.values)-np.nanmin(
-                    self._zeroes_df.values)))
+            normed_scores = pd.DataFrame(self.min_max(self._scores_df))
+            normed_zeroes = pd.DataFrame(self.min_max(self._zeroes_df))
             normed_zeroes = normed_zeroes.astype('float')
     
-            self._combination = (normed_scores.copy().applymap(self.inv) + \
+            self._combination = 2 * ((normed_scores.copy().applymap(self.inv) + \
                                         normed_zeroes.copy().applymap(
-                                            self.inv)).applymap(self.inv)
+                                            self.inv)).applymap(self.inv))
         else:
-            self._combination = (self._scores_df.copy().applymap(self.inv) + \
+            self._combination = 2 * ((self._scores_df.copy().applymap(self.inv) + \
                                  self._zeroes_df.copy().applymap(
-                                     self.inv)).applymap(self.inv)
+                                     self.inv)).applymap(self.inv))
+        self._combination.index = self._scores_df.index.copy()
+        self._combination.columns = self._scores_df.columns.copy()
         
         self._scores_df.columns.name = 'Scores'
         self._zeroes_df.columns.name = 'Zeroes'
@@ -724,63 +854,71 @@ class RENT_Classification(RENT_Base):
         self._best_l1_ratio = self._combination.index[np.nanmax(best_row)]
         self._best_C = self._combination.columns[np.nanmin(best_col)]
         
-    def parameter_selection(self, 
-                        C_params, 
-                        l1_params, 
+    def par_selection(self, 
+                        C, 
+                        l1_ratios, 
                         n_splits=5, 
                         testsize_range=(0.25,0.25)):
         """
-        
+        Preselect C and l1 ratio with Cross Validation.
 
         Parameters
         ----------
-        C_params : TYPE
-            DESCRIPTION.
-        l1_params : TYPE
-            DESCRIPTION.
-        n_splits : TYPE, optional
-            DESCRIPTION. The default is 5.
-        testsize_range : TYPE, optional
-            DESCRIPTION. The default is (0.25,0.25).
+        C: <list of int or float values>
+        List holding regularisation parameters for K models. The lower, the
+        stronger the regularization is.
+    
+        l1_ratios: <list of int or float values>
+            List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
+            pure l2 use 0, for pure l1 use 1. 
+        n_splits : <int>
+            Number of cross validation folds. The default is 5.
+        testsize_range: <tuple float> 
+            Range of random proportion of dataset toinclude in test set,
+            low and high are floats between 0 and 1, default (0.2, 0.6).
+            Testsize can be fixed by setting low and high to the same value.
 
         Returns
         -------
-        None.
+        A tuple. First entry: suggested C parameter.
+                 Second entry: suggested l1 ratio.
 
         """
-            
-        # if len(np.shape(labels)) == 2:
-        #     labels = labels.squeeze()
         
         skf = StratifiedKFold(n_splits=n_splits, random_state=0, shuffle=True)
         
-        scores_df = pd.DataFrame(np.zeros, index=l1_params, columns=C_params)
-        zeroes_df = pd.DataFrame(np.zeros, index=l1_params, columns=C_params)
+        scores_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
+        zeroes_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
         
         
         def run_parallel(l1):
             """
-            Parallel computation of for loops. Parallelizes the number of tt_splits
-            as this is the parameter with most varying values.
+            Parallel computation of for n_splits * C * l1_ratios models. 
             
             INPUT
             -----
-            tt_split: range of train-test splits
+            l1: current l1 ratio in the parallelization framework.
             
             OUTPUT
             ------
             None 
             """
-            for reg in C_params:
+            for reg in C:
                 scores = list()
                 zeroes = list()
                 for train, test in skf.split(self.data, self.target):
-                    
-                    sc = StandardScaler()
-                    train_data = sc.fit_transform(self.data.iloc[train, :])
-                    train_target = self.target[train]
-                    test_data_split = sc.transform(self.data.iloc[test, :])
-                    test_target = self.target[test]
+                    if self.scale == True:
+                        sc = StandardScaler()
+                        train_data = sc.fit_transform(self.data.iloc[train, :])
+                        train_target = self.target[train]
+                        test_data_split = sc.transform(self.data.iloc[test, :])
+                        test_target = self.target[test]
+                    elif self.scale == False:
+                        train_data = self.data.iloc[train, :].values
+                        train_target = self.target[train]
+                        test_data_split = self.data.iloc[test, :].values
+                        test_target = self.target[test]
+                        
                     sgd = LogisticRegression(penalty="elasticnet", C=reg, 
                                              solver="saga", l1_ratio=l1, 
                                              random_state=0)
@@ -788,17 +926,18 @@ class RENT_Classification(RENT_Base):
                     
                     params = np.where(sgd.coef_ != 0)[1]
         
-                    
                     if len(params) == 0:
                         scores.append(np.nan)
                         zeroes.append(np.nan)
                     else:
                         zeroes.append((len(self.data.columns)-len(params))\
                                       /len(self.data.columns))
-                        
-                        sc = StandardScaler()
-                        train_data_1 = sc.fit_transform(train_data[:,params])
-                        test_data_1 = sc.transform(test_data_split[:, params])
+                            
+
+                        train_data_1 = train_data[:,params]
+                        test_data_1 = test_data_split[:, params]
+
+
                         model = LogisticRegression(penalty='none', 
                                                    max_iter=8000, 
                                                    solver="saga",
@@ -809,35 +948,55 @@ class RENT_Classification(RENT_Base):
                                 
                 scores_df.loc[l1, reg] = np.nanmean(scores)
                 zeroes_df.loc[l1, reg] = np.nanmean(zeroes)
-    
+                
+        self._scores_df_cv = scores_df
+        self._zeroes_df_cv = zeroes_df
+        self._scores_df_cv.columns.name = 'Scores'
+        self._zeroes_df_cv.columns.name = 'Zeroes'
         
         Parallel(n_jobs=-1, verbose=0, backend="threading")(
-             map(delayed(run_parallel), l1_params))  
-    
-        normed_scores = (scores_df-np.nanmin(scores_df.values))\
-        /(np.nanmax(scores_df.values)-np.nanmin(scores_df.values))
-        normed_zeroes = (zeroes_df-np.nanmin(zeroes_df.values))\
-        /(np.nanmax(zeroes_df.values)-np.nanmin(zeroes_df.values))
-        
-        combination = (normed_scores.copy().applymap(self.inv) + \
-                       normed_zeroes.copy().applymap(self.inv)
-                       ).applymap(self.inv)
-        best_combination_row, best_combination_col = np.where(combination == \
-                                                  np.nanmax(combination.values))
-        best_l1 = combination.index[np.nanmax(best_combination_row)]
-        best_C = combination.columns[np.nanmin(best_combination_col)]
+             map(delayed(run_parallel), l1_ratios))  
+            
+        if len(np.unique(scores_df.values)) ==1:
+            best_row, best_col = np.where(zeroes_df.values == \
+                                                  np.nanmax(zeroes_df.values))
+            best_l1 = zeroes_df.index[np.nanmax(best_row)]
+            best_C = zeroes_df.columns[np.nanmin(best_col)]
+
+        else:
+            normed_scores = pd.DataFrame(self.min_max(scores_df.copy().values))
+            normed_zeroes = pd.DataFrame(self.min_max(zeroes_df.copy().values))
+            
+            combination = 2 * ((normed_scores.copy().applymap(self.inv) + \
+                           normed_zeroes.copy().applymap(self.inv)
+                           ).applymap(self.inv))
+                
+            combination.index = scores_df.index.copy()
+            combination.columns = scores_df.columns.copy()
+            best_combination_row, best_combination_col = np.where(combination == \
+                                                      np.nanmax(combination.values))
+            best_l1 = combination.index[np.nanmax(best_combination_row)]
+            best_C = combination.columns[np.nanmin(best_combination_col)]
+            
+        self._combination_cv = combination
+        self._combination_cv.columns.name = 'Harmonic Mean'
         
         return(best_C, best_l1)
                 
         
     def summary_objects(self):
-        # incorrect probabilities dataframe
         """
-        This method computes a summary of classifications across all models.
+        This method computes a summary of classifications for each sample
+        across all models, where the sample was part of the test set.
         Contains information on how often a sample has been mis-classfied.
+
+        Returns
+        -------
+        <pandas dataframe>
+
         """
-        
-        #check that train has been run before
+        if not hasattr(self, '_best_C'):
+            sys.exit('Run train() first!')
 
         self.incorrect_labels = pd.DataFrame({'# test':np.repeat\
                                       (0, np.shape(self.data)[0]),
@@ -870,6 +1029,16 @@ class RENT_Classification(RENT_Base):
     
     
     def get_object_probabilities(self):
+        """
+        Logistic Regression probabilities for each object.
+
+        Returns
+        -------
+        <pandas dataframe>
+
+        """
+        if not hasattr(self, 'pp_data'):
+            sys.exit('Run train() first!')
         # predicted probabilities only if Logreg
         if self.method != 'logreg':
             return warnings.warn('Classification method must be "logreg"!')
@@ -885,28 +1054,35 @@ class RENT_Classification(RENT_Base):
     def plot_object_probabilities(self, object_id, binning='auto', lower=0,
                                   upper=1, kde=False, norm_hist=False):
         """
-        Histograms of predicted probabilities. Check scalings etc.
+        Histograms of predicted probabilities.
 
         Parameters
         ----------
-        object_id : TYPE
+        object_id : <list of int or str>
+            Samples/Objects whos histograms shall be plotted.
             DESCRIPTION.
-        binning : TYPE, optional
-            DESCRIPTION. The default is 'auto'.
-        lower : TYPE, optional
-            DESCRIPTION. The default is 0.
-        upper : TYPE, optional
-            DESCRIPTION. The default is 1.
-        kde : TYPE, optional
-            DESCRIPTION. The default is False.
-        norm_hist : TYPE, optional
-            DESCRIPTION. The default is False.
+        binning : <str>
+            Histogram binning type. 
+            Source:https://www.answerminer.com/blog/binning-guide-ideal-histogram 
+            Options are: 'auto' 'rice' and 'sturges'. The default is 'auto'. 
+        lower : <float>
+            Lower bound of teh x-axis. The default is 0.
+        upper : <float>
+            Upper bound of the x-axis. The default is 1.
+        kde : <boolean>
+            Kernel density estimation. Same as seaborn distplot.
+            The default is False.
+        norm_hist : <boolean>
+            Normalize the histogram. Same as seaborn distplot.
+            The default is False.
 
         Returns
         -------
         None.
 
         """
+        if not hasattr(self, '_best_C'):
+            sys.exit('Run train() first!')
         # different binning schemata
         # https://www.answerminer.com/blog/binning-guide-ideal-histogram
         target_objects = pd.DataFrame(self.target)
@@ -949,31 +1125,49 @@ class RENT_Classification(RENT_Base):
                 
 
 
-    def feasibility_study(self, test_data, test_labels, K_feas, metric='mcc',
-                          alpha=0.05):
+    def feasibility_study(self, test_data, test_labels, num_drawings, num_permutations,
+                          metric='mcc', alpha=0.05):
         """
-        Feasibiliyt study as in paper. p-value has to be added.
+        Feasibiliyt study based on a statistical hypothesis test. 
+        H0: RENT is not better than random feature selection.
 
         Parameters
         ----------
-        test_data : TYPE
-            DESCRIPTION.
-        test_labels K_feas : TYPE
-            DESCRIPTION.
-        metric : TYPE, optional
-            DESCRIPTION. The default is 'mcc'.
+        test_data : <numpy array> or <pandas dataframe>
+            Dataset used to evalute Logistic Models in the feasibility study.
+        test_lables: <numpy array> or <pandas dataframe>
+            Response variable of data.
+        num_drawings: <int>
+            Number of independent feature subset drawings for FS1, see paper.
+        num_permutations: <int>
+            Number of independent test_labels permutations for FS2, see paper.
+        metric: <str>
+        The metric to evaluate K models. Default: "mcc".
+        options: 
+            -'accuracy':  Accuracy
+            -'f1': F1-score 
+            -'precision': Precision
+            -'recall': Recall
+            -'mcc': Matthews Correlation Coefficient
+        alpha: <float>
+            Significance level for hypothesis testing.
 
         Returns
         -------
         None.
 
         """
-        
+        if not hasattr(self, 'sel_var'):
+            sys.exit('Run selectFeatures() first!')
         
         # RENT prediction
-        sc = StandardScaler()
-        train_RENT = sc.fit_transform(self.data.iloc[:, self.sel_var])
-        test_RENT = sc.transform(test_data.iloc[:, self.sel_var])
+        if self.scale == True:
+            sc = StandardScaler()
+            train_RENT = sc.fit_transform(self.data.iloc[:, self.sel_var])
+            test_RENT = sc.transform(test_data.iloc[:, self.sel_var])
+        elif self.scale == False:
+            train_RENT = self.data.iloc[:, self.sel_var].values
+            test_RENT = test_data.iloc[:, self.sel_var].values
         if self.method == 'logreg':
                 model = LogisticRegression(penalty='none', max_iter=8000, 
                                            solver="saga", random_state=0).\
@@ -991,14 +1185,18 @@ class RENT_Classification(RENT_Base):
         
         # FS1
         FS1 = []
-        for K in range(K_feas):
+        for K in range(num_drawings):
             # Randomly select features (# features = # RENT features selected)
             columns = np.random.RandomState(seed=K).choice(
                 range(0,len(self.data.columns)),
                                     len(self.sel_var))
-            sc = StandardScaler()
-            train_FS1 = sc.fit_transform(self.data.iloc[:, columns])
-            test_FS1 = sc.transform(test_data.iloc[:, columns])
+            if self.scale == True:
+                sc = StandardScaler()
+                train_FS1 = sc.fit_transform(self.data.iloc[:, columns])
+                test_FS1 = sc.transform(test_data.iloc[:, columns])
+            elif self.scale == False:
+                train_FS1 = self.data.iloc[:, columns].values
+                test_FS1 = test_data.iloc[:, columns].values
             if self.method == 'logreg':
                 model = LogisticRegression(penalty='none', max_iter=8000, 
                                            solver="saga", random_state=0).\
@@ -1021,15 +1219,19 @@ class RENT_Classification(RENT_Base):
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
             print('With a significancelevel of ', alpha, ' H0 is accepted.')
-            
-            
+        print(' ')
+        print('-------------------------------------------------')
+        print(' ')
         # FS2
         sc = StandardScaler()
         test_data.columns = self.data.columns
         FS2 = []
-        
-        train_FS2 = sc.fit_transform(self.data.iloc[:,self.sel_var])
-        test_FS2 = sc.transform(test_data.iloc[:, self.sel_var])
+        if self.scale == True:
+            train_FS2 = sc.fit_transform(self.data.iloc[:,self.sel_var])
+            test_FS2 = sc.transform(test_data.iloc[:, self.sel_var])
+        elif self.scale == False:
+            train_FS2 = self.data.iloc[:,self.sel_var].values
+            test_FS2 = test_data.iloc[:, self.sel_var].values
         if self.method == 'logreg':
             model = LogisticRegression(penalty='none', max_iter=8000, 
                                        solver="saga", random_state=0 ).\
@@ -1037,7 +1239,7 @@ class RENT_Classification(RENT_Base):
         else:
             print("add model")
             
-        for K in range(K_feas):
+        for K in range(num_permutations):
             if metric == 'mcc':
                 FS2.append(matthews_corrcoef(
                         np.random.RandomState(seed=K).permutation(test_labels),\
@@ -1057,7 +1259,8 @@ class RENT_Classification(RENT_Base):
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
             print('With a significancelevel of ', alpha, ' H0 is accepted.')
-
+            
+        plt.figure()
         sns.kdeplot(FS1, shade=True, color="b", label='FS1')
         sns.kdeplot(FS2, shade=True, color="g", label='FS2')
         plt.axvline(x=score, color='r', linestyle='--', 
@@ -1068,7 +1271,7 @@ class RENT_Classification(RENT_Base):
 class RENT_Regression(RENT_Base):
     """
     This class carries out repeated elastic net feature selection on a given
-    binary classification or regression dataset. Feature selection is done on
+    regressionn dataset. Feature selection is done on
     multiple train test splits. The user can initiate interactions between 
     features that are included in the dataset and as such introduce 
     non-linearities.
@@ -1076,35 +1279,44 @@ class RENT_Regression(RENT_Base):
     INPUT
     -----
     
-    data: numpy array
+    data: <numpy array> or <pandas dataframe>
+        Dataset on which feature selection shall be performed. 
+        Dimension according to the paper: I_train x N
     
-    target: numpy array
+    target: <numpy array> or <pandas dataframe>
+        Response variable of data. 
+        Dimension: I_train x 1
     
-    feat_names: list holding feature names
+    feat_names: <list> 
+        List holding feature names. Preferably a list of string values.
     
-    scale: boolean, default=True
+    C: <list of int or float values>
+        List holding regularisation parameters for K models. The lower the 
+        stronger the regularization is. 
     
-    C: list holding regularisation parameters for model
+    l1_ratios: <list of int or float values>
+        List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
+        pure l2 use 0, for pure l1 use 1. 
     
-    l1_ratios: list holding ratios between l1 and l2 penalty
+    poly: <str>
+        - 'OFF', no feature interaction
+        - 'ON', feature interaction and squared features (2-polynoms)
+        - 'ON_only_interactions', (only feature interactions, no squared features)
+                        
+        
+    testsize_range: <tuple float> 
+         Range of random proportion of dataset toinclude in test set,
+         low and high are floats between 0 and 1, default (0.2, 0.6).
+         Testsize can be fixed by setting low and high to the same value.
+
+    K: <int>
+        Number of unique train-test splits. Default: 100.
     
-    poly: str, options: 'OFF', no feature interaction
-                        'ON', (includes squared of features)
-                        'ON_only_interactions', (only interactions, 
-                                                 no squared features)
+    scale:<boolean>
+        Scale each of the K train datasets. Default: True
     
-    testsize_range: tuple (low, high) range of random proportion of dataset to
-    include in test set,
-                    low and high are floats between 0 and 1, 
-                    default (0.2, 0.6)
-    
-    
-    classifier: str, options: 'logreg' for logistic regression
-                       'linearSVC' for linear support vector classifier
-    
-    K: int, number of unique train-test splits
-    
-    verbose: print something
+    verbose: <int>
+        Track the train process if value > 0.
     
     OUTPUT
     ------
@@ -1114,7 +1326,24 @@ class RENT_Regression(RENT_Base):
     def __init__(self, data, target, feat_names=[], parameter_selection=True,
                  C=[1,10], l1_ratios = [0.6],
                  poly='OFF', testsize_range=(0.2, 0.6),
-                 K=5,  verbose = 0):
+                 K=5, scale=True, verbose = 0):
+        
+        if any(c < 0 for c in C):
+            sys.exit('C values must not be negative!')
+        if any(l < 0 for l in l1_ratios) or any(l > 1 for l in l1_ratios):
+            sys.exit('l1 ratios must be in [0,1]!')
+        if parameter_selection not in [True, False]:
+            sys.exit('parameter_selection must be True or False!')
+        if scale not in [True, False]:
+            sys.exit('scale must be True or False!')
+        if poly not in ['ON', 'ON_only_interactions', 'OFF']:
+            sys.exit('Invalid poly parameter!')
+        # for testsize range criteria is missing.
+        if K<=0:
+            sys.exit('Invalid K!')
+        if K<10:
+            # does not show warning...
+            warnings.warn('Attention: K is very small!', DeprecationWarning)
         
         # Print parameters for checking
         print('data dimension:', np.shape(data), ' data type:', type(data))
@@ -1122,6 +1351,7 @@ class RENT_Regression(RENT_Base):
         print('regularization parameters C:', C)
         print('elastic net l1_ratios:', l1_ratios)
         print('number of models in ensemble:', K)
+        print('scale:', scale)
         print('verbose:', verbose)
 
 
@@ -1129,8 +1359,10 @@ class RENT_Regression(RENT_Base):
         self.target = target
         self.K = K
         self.feat_names = feat_names
+        self.scale = scale
         self.testsize_range = testsize_range
         self.verbose = verbose
+        self.parameter_selection = parameter_selection
         
         
         # Check if data is dataframe and add index information
@@ -1200,9 +1432,8 @@ class RENT_Regression(RENT_Base):
             sys.exit('Value for paramter "poly" not regcognised.')
             
             
-        if parameter_selection == True:
-            self.C, self.l1_ratios = self.parameter_selection(C_params=C, 
-                                                              l1_params=l1_ratios)
+        if self.parameter_selection == True:
+            self.C, self.l1_ratios = self.par_selection(C=C, l1_ratios=l1_ratios)
             self.C = [self.C]
             self.l1_ratios = [self.l1_ratios]
         else:
@@ -1210,63 +1441,71 @@ class RENT_Regression(RENT_Base):
             self.l1_ratios = l1_ratios
     
             
-    def parameter_selection(self, 
-                    C_params, 
-                    l1_params, 
+    def par_selection(self, 
+                    C, 
+                    l1_ratios, 
                     n_splits=5, 
                     testsize_range=(0.25,0.25)):
         """
-        
+        Preselect C and l1 ratio with Cross Validation.
 
         Parameters
         ----------
-        C_params : TYPE
-            DESCRIPTION.
-        l1_params : TYPE
-            DESCRIPTION.
-        n_splits : TYPE, optional
-            DESCRIPTION. The default is 5.
-        testsize_range : TYPE, optional
-            DESCRIPTION. The default is (0.25,0.25).
+        C: <list of int or float values>
+        List holding regularisation parameters for K models. The lower, the
+        stronger the regularization is.
+    
+        l1_ratios: <list of int or float values>
+            List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
+            pure l2 use 0, for pure l1 use 1. 
+        n_splits : <int>
+            Number of cross validation folds. The default is 5.
+        testsize_range: <tuple float> 
+            Range of random proportion of dataset toinclude in test set,
+            low and high are floats between 0 and 1, default (0.2, 0.6).
+            Testsize can be fixed by setting low and high to the same value.
 
         Returns
         -------
-        None.
+        A tuple. First entry: suggested C parameter.
+                 Second entry: suggested l1 ratio.
 
         """
-            
-        # if len(np.shape(labels)) == 2:
-        #     labels = labels.squeeze()
-        
         skf = KFold(n_splits=n_splits, random_state=0, shuffle=True)
         
-        scores_df = pd.DataFrame(np.zeros, index=l1_params, columns=C_params)
-        zeroes_df = pd.DataFrame(np.zeros, index=l1_params, columns=C_params)
+        scores_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
+        zeroes_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
         
         
         def run_parallel(l1):
             """
-            Parallel computation of for loops. Parallelizes the number of tt_splits
-            as this is the parameter with most varying values.
+            Parallel computation of K * C * l1_ratios models. 
             
             INPUT
             -----
-            tt_split: range of train-test splits
+            K: range of train-test splits
             
             OUTPUT
             ------
             None 
             """
-            for reg in C_params:
+            for reg in C:
                 scores = list()
                 zeroes = list()
                 for train, test in skf.split(self.data, self.target):
                     # Find those parameters that are 0
-                    sc = StandardScaler()
-                    train_data = sc.fit_transform(self.data.iloc[train,:])
-                    train_target = self.target[train]
-                    test_data_split = sc.transform(self.data.iloc[test,:])
-                    test_target = self.target[test]
+                    if self.scale == True:
+                        sc = StandardScaler()
+                        train_data = sc.fit_transform(self.data.iloc[train,:])
+                        train_target = self.target[train]
+                        test_data_split = sc.transform(self.data.iloc[test,:])
+                        test_target = self.target[test]
+                    elif self.scale == False:
+                        train_data = self.data.iloc[train,:].values
+                        train_target = self.target[train]
+                        test_data_split = self.data.iloc[test,:].values
+                        test_target = self.target[test]
+                        
                     sgd =  ElasticNet(alpha=1/reg, l1_ratio=l1,
                                        max_iter=5000, random_state=0, \
                                        fit_intercept=False).\
@@ -1284,9 +1523,10 @@ class RENT_Regression(RENT_Base):
                         zeroes.append((len(self.data.columns)-len(params))\
                                       /len(self.data.columns))
                         
-                        sc = StandardScaler()
-                        train_data_1 = sc.fit_transform(train_data[:,params])
-                        test_data_1 = sc.transform(test_data_split[:, params])
+
+                        train_data_1 = train_data[:,params]
+                        test_data_1 = test_data_split[:, params]
+                        
                         model = LinearRegression().\
                                 fit(train_data_1, train_target)
                         scores.append(r2_score(test_target, \
@@ -1297,19 +1537,37 @@ class RENT_Regression(RENT_Base):
     
         
         Parallel(n_jobs=-1, verbose=0, backend="threading")(
-             map(delayed(run_parallel), l1_params))  
-    
-        normed_scores = (scores_df-np.nanmin(scores_df.values))\
-        /(np.nanmax(scores_df.values)-np.nanmin(scores_df.values))
-        normed_zeroes = (zeroes_df-np.nanmin(zeroes_df.values))\
-        /(np.nanmax(zeroes_df.values)-np.nanmin(zeroes_df.values))
+             map(delayed(run_parallel), l1_ratios))  
         
-        combination = (normed_scores ** -1 + normed_zeroes ** -1) ** -1
-        best_combination_row, best_combination_col = np.where(combination == \
-                                                  np.nanmax(combination.values))
-        best_l1 = combination.index[np.nanmax(best_combination_row)]
-        best_C = combination.columns[np.nanmin(best_combination_col)]
-        
+        if len(np.unique(scores_df.values)) ==1:
+            best_row, best_col = np.where(zeroes_df.values == \
+                                                  np.nanmax(zeroes_df.values))
+            best_l1 = zeroes_df.index[np.nanmax(best_row)]
+            best_C = zeroes_df.columns[np.nanmin(best_col)]
+        else:
+            normed_scores = pd.DataFrame(self.min_max(scores_df.values))
+            # normed_scores = (scores_df-np.nanmin(scores_df.values))\
+            # /(np.nanmax(scores_df.values)-np.nanmin(scores_df.values))
+            normed_zeroes = pd.DataFrame(self.min_max(zeroes_df.values))
+            # normed_zeroes = (zeroes_df-np.nanmin(zeroes_df.values))\
+            # /(np.nanmax(zeroes_df.values)-np.nanmin(zeroes_df.values))
+            
+            combination = 2 * ((normed_scores.copy().applymap(self.inv) + \
+                           normed_zeroes.copy().applymap(self.inv)
+                           ).applymap(self.inv))
+            combination.index = scores_df.index.copy()
+            combination.columns = scores_df.columns.copy()
+            best_combination_row, best_combination_col = np.where(combination == \
+                                                      np.nanmax(combination.values))
+            best_l1 = combination.index[np.nanmax(best_combination_row)]
+            best_C = combination.columns[np.nanmin(best_combination_col)]
+            
+        self._scores_df_cv, self._zeroes_df_cv, self._combination_cv = \
+            scores_df, zeroes_df, combination
+            
+        self._scores_df_cv.columns.name = 'Scores'
+        self._zeroes_df_cv.columns.name = 'Zeroes'
+        self._combination_cv.columns.name = 'Harmonic Mean'
         return(best_C, best_l1)
             
     def run_parallel(self, K):
@@ -1342,10 +1600,14 @@ class RENT_Regression(RENT_Base):
                 # Initialise standard scaler and compute mean and STD from 
                 # training data. 
                 # Transform train and test dataset
-                sc = StandardScaler()
-                sc.fit(X_train)
-                X_train_std = sc.transform(X_train)
-                X_test_std = sc.transform(X_test)
+                if self.scale == True:
+                    sc = StandardScaler()
+                    sc.fit(X_train)
+                    X_train_std = sc.transform(X_train)
+                    X_test_std = sc.transform(X_test)
+                if self.scale == False:
+                    X_train_std = X_train.copy().values
+                    X_test_std = X_test.copy().values
                 
                 if self.verbose > 0:
                     print('l1 = ', l1, 'C = ', C, ', TT split = ', K)
@@ -1451,23 +1713,19 @@ class RENT_Regression(RENT_Base):
                 self._zeroes_df.loc[l1, C] = count
                 
         if len(self.C)>1 or len(self.l1_ratios)>1:
-            normed_scores = pd.DataFrame((self._scores_df-np.nanmin(
-                self._scores_df.values))/ \
-                (np.nanmax(self._scores_df.values)-np.nanmin(
-                    self._scores_df.values)))
-            normed_zeroes = pd.DataFrame((self._zeroes_df-np.nanmin(
-                self._zeroes_df.values))/ \
-                (np.nanmax(self._zeroes_df.values)-np.nanmin(
-                    self._zeroes_df.values)))
+            normed_scores = pd.DataFrame(self.min_max(self._scores_df.copy().values))
+            normed_zeroes = pd.DataFrame(self.min_max(self._zeroes_df.copy().values))
             normed_zeroes = normed_zeroes.astype('float')
     
-            self._combination = (normed_scores.copy().applymap(self.inv) + \
+            self._combination = 2 * ((normed_scores.copy().applymap(self.inv) + \
                                         normed_zeroes.copy().applymap(
-                                            self.inv)).applymap(self.inv)
+                                            self.inv)).applymap(self.inv))
         else:
-            self._combination = (self._scores_df.copy().applymap(self.inv) + \
+            self._combination = 2 * ((self._scores_df.copy().applymap(self.inv) + \
                                  self._zeroes_df.copy().applymap(
-                                     self.inv)).applymap(self.inv)
+                                     self.inv)).applymap(self.inv))
+        self._combination.index = self._scores_df.index.copy()
+        self._combination.columns = self._scores_df.columns.copy()
         
         self._scores_df.columns.name = 'Scores'
         self._zeroes_df.columns.name = 'Zeroes'
@@ -1480,13 +1738,17 @@ class RENT_Regression(RENT_Base):
     
     def summary_objects(self):
         """
-        
+        This method computes a summary of average absolute errors for each sample
+        across all K models, where the sample was part of at least one test set.
 
         Returns
         -------
-        None.
+        <pandas dataframe>
 
         """
+        if not hasattr(self, '_best_C'):
+            sys.exit('Run train() first!')
+            
         self.incorrect_labels = pd.DataFrame({'# test':np.repeat\
                                       (0, np.shape(self.data)[0]),
                                       'average abs error':np.repeat\
@@ -1519,40 +1781,50 @@ class RENT_Regression(RENT_Base):
                 
     def get_object_errors(self):
         """
-        
+        Absolute errors for samples which were at least once in a test-set among K
+        models
 
         Returns
         -------
-        None.
+        pandas dataframe
 
         """
+        if not hasattr(self, '_histogram_data'):
+            sys.exit('Run summary_objects() first!')
         return self._histogram_data
         
     def plot_object_errors(self, object_id, binning='auto', lower=0,
                                   upper=100, kde=False, norm_hist=False):
         """
-        Histograms of predicted probabilities. Check scalings etc.
+        Histograms of absolute errors.
 
         Parameters
         ----------
-        object_id : TYPE
+        object_id : <list of int or str>
+            Samples/Objects whos histograms shall be plotted.
             DESCRIPTION.
-        binning : TYPE, optional
-            DESCRIPTION. The default is 'auto'.
-        lower : TYPE, optional
-            DESCRIPTION. The default is 0.
-        upper : TYPE, optional
-            DESCRIPTION. The default is 1.
-        kde : TYPE, optional
-            DESCRIPTION. The default is False.
-        norm_hist : TYPE, optional
-            DESCRIPTION. The default is False.
+        binning : <str>
+            Histogram binning type. 
+            Source:https://www.answerminer.com/blog/binning-guide-ideal-histogram 
+            Options are: 'auto' 'rice' and 'sturges'. The default is 'auto'. 
+        lower : <float>
+            Lower bound of teh x-axis. The default is 0.
+        upper : <float>
+            Upper bound of the x-axis. The default is 1.
+        kde : <boolean>
+            Kernel density estimation. Same as seaborn distplot.
+            The default is False.
+        norm_hist : <boolean>
+            Normalize the histogram. Same as seaborn distplot.
+            The default is False.
 
         Returns
         -------
         None.
 
         """
+        if not hasattr(self, '_histogram_data'):
+            sys.exit('Run summary_objects() first!')
         # different binning schemata
         # https://www.answerminer.com/blog/binning-guide-ideal-histogram
         for obj in object_id:
@@ -1583,41 +1855,65 @@ class RENT_Regression(RENT_Base):
                 ax.set_xlabel('Absolute Error')
             ax.set_title('Object: {0}')
     
-    def feasibility_study(self, test_data, test_labels, K_feas, alpha=0.05):
+    def feasibility_study(self, test_data, test_labels, 
+                          num_drawings, num_permutations, alpha=0.05):
         """
-        Feasibiliyt study as in paper. p-value has to be added.
+        Feasibiliyt study based on a statistical hypothesis test. 
+        H0: RENT is not better than random feature selection.
 
         Parameters
         ----------
-        test_data : TYPE
-            DESCRIPTION.
-        test_labels K_feas : TYPE
-            DESCRIPTION.
-        metric : TYPE, optional
-            DESCRIPTION. The default is 'R2'.
+        test_data : <numpy array> or <pandas dataframe>
+            Dataset used to evalute Logistic Models in the feasibility study.
+        test_lables: <numpy array> or <pandas dataframe>
+            Response variable of data.
+        num_drawings: <int>
+            Number of independent feature subset drawings for FS1, see paper.
+        num_permutations: <int>
+            Number of independent test_labels permutations for FS2, see paper.
+        metric: <str>
+        The metric to evaluate K models. Default: "mcc".
+        options: 
+            -'accuracy':  Accuracy
+            -'f1': F1-score 
+            -'precision': Precision
+            -'recall': Recall
+            -'mcc': Matthews Correlation Coefficient
+        alpha: <float>
+            Significance level for hypothesis testing.
 
         Returns
         -------
         None.
 
         """
-        
-        sc = StandardScaler()
-        train_RENT = sc.fit_transform(self.data.iloc[:,self.sel_var])
-        test_RENT = sc.transform(test_data.loc[:, self.sel_var])
+        if not hasattr(self, 'sel_var'):
+            sys.exit('Run selectFeatures() first!')
+        if self.scale == True:
+            sc = StandardScaler()
+            train_RENT = sc.fit_transform(self.data.iloc[:,self.sel_var])
+            test_RENT = sc.transform(test_data.loc[:, self.sel_var])
+        elif self.scale == False:
+            train_RENT = self.data.iloc[:,self.sel_var].values
+            test_RENT = test_data.loc[:, self.sel_var].values
 
         model = LinearRegression().fit(train_RENT,self.target)
         score = r2_score(test_labels, model.predict(test_RENT))
         # FS1
         FS1 = []
-        for K in range(K_feas):
+        for K in range(num_drawings):
             # Randomly select features (# features = # RENT features selected)
             columns = np.random.RandomState(seed=K).choice(
                 range(0,len(self.data.columns)),
                                     len(self.sel_var))
-            sc = StandardScaler()
-            train_FS1 = sc.fit_transform(self.data.iloc[:, columns])
-            test_FS1 = sc.transform(test_data.iloc[:, columns])
+            
+            if self.scale == True:
+                sc = StandardScaler()
+                train_FS1 = sc.fit_transform(self.data.iloc[:, columns])
+                test_FS1 = sc.transform(test_data.iloc[:, columns])
+            elif self.scale == False:
+                train_FS1 = self.data.iloc[:, columns].values
+                test_FS1 = test_data.iloc[:, columns].values
 
             model = LinearRegression().fit(train_FS1,self.target)
 
@@ -1629,17 +1925,22 @@ class RENT_Regression(RENT_Base):
             print('With a significancelevel of ',alpha,' H0 is rejected.')
         else:
             print('With a significancelevel of ',alpha,' H0 is accepted.')
-        
+        print(' ')
+        print('-------------------------------------------------')
+        print(' ')
         # FS2
-        sc = StandardScaler()
         test_data.columns = self.data.columns
         FS2 = []
-        
-        train_FS2 = sc.fit_transform(self.data.iloc[:,self.sel_var])
-        test_FS2 = sc.transform(test_data.loc[:, self.sel_var])
+        if self.scale == True:
+            sc = StandardScaler()
+            train_FS2 = sc.fit_transform(self.data.iloc[:,self.sel_var])
+            test_FS2 = sc.transform(test_data.loc[:, self.sel_var])
+        elif self.scale == False:
+            train_FS2 = self.data.iloc[:,self.sel_var].values
+            test_FS2 = test_data.loc[:, self.sel_var].values
 
         model = LinearRegression().fit(train_FS2,self.target)
-        for K in range(K_feas):
+        for K in range(num_permutations):
             FS2.append(r2_score(
                     np.random.RandomState(seed=K).permutation(test_labels),\
                     model.predict(test_FS2)))
@@ -1651,6 +1952,7 @@ class RENT_Regression(RENT_Base):
         else:
             print('With a significancelevel of ', alpha, ' H0 is accepted.')
             
+        plt.figure()
         sns.kdeplot(FS1, shade=True, color="b", label='FS1')
         sns.kdeplot(FS2, shade=True, color="g", label='FS2')
         plt.axvline(x=score, color='r', linestyle='--', 

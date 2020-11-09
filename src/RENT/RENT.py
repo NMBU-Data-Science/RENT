@@ -1037,8 +1037,8 @@ class RENT_Classification(RENT_Base):
         <pandas dataframe>
 
         """
-        if not hasattr(self, 'pp_data'):
-            sys.exit('Run train() first!')
+        #if not hasattr(self, 'pp_data'):
+        #    sys.exit('Run train() first!')
         # predicted probabilities only if Logreg
         if self.method != 'logreg':
             return warnings.warn('Classification method must be "logreg"!')

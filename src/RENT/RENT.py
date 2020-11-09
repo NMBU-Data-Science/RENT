@@ -1214,7 +1214,7 @@ class RENT_Classification(RENT_Base):
                                                     model.predict(test_FS1)))
                     
         p_value_FS1 = sum(FS1 > score) / len(FS1)
-        print("p-value for average score from random feature drawing: ", p_value_FS1)
+        print("FS1: p-value for average score from random feature drawing: ", p_value_FS1)
         if p_value_FS1 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
@@ -1254,7 +1254,7 @@ class RENT_Classification(RENT_Base):
                         model.predict(test_FS2)))
 
         p_value_FS2 = sum(FS2 > score) / len(FS2)
-        print("p-value for score from permutation of test labels: ", p_value_FS2)
+        print("FS2: p-value for score from permutation of test labels: ", p_value_FS2)
         if p_value_FS2 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
@@ -1923,7 +1923,7 @@ class RENT_Regression(RENT_Base):
             FS1.append(r2_score(test_labels, model.predict(test_FS1)))
             
         p_value_FS1 = sum(FS1 > score) / len(FS1)
-        print("p-value for average score from random feature drawing: ", p_value_FS1)
+        print("FS1: p-value for average score from random feature drawing: ", p_value_FS1)
         if p_value_FS1 <= alpha:
             print('With a significancelevel of ',alpha,' H0 is rejected.')
         else:
@@ -1949,7 +1949,7 @@ class RENT_Regression(RENT_Base):
                     model.predict(test_FS2)))
 
         p_value_FS2 = sum(FS2 > score) / len(FS2)
-        print("p-value for score from permutation of test labels: ", p_value_FS2)
+        print("FS2: p-value for score from permutation of test labels: ", p_value_FS2)
         if p_value_FS2 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:

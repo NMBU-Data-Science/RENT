@@ -11,7 +11,9 @@ More details are provided here: [RENT - Repeated Elastic Net Technique for Featu
 
 # Example
 
-The following Jupyter notebook provides and [example](https://github.com/NMBU-Data-Science/RENT/blob/master/src/RENT/Example.ipynb) of how to use RENT.
+The following Jupyter notebook provides a [classification example](https://github.com/NMBU-Data-Science/RENT/blob/master/src/RENT/Classification_example.ipynb) of how to use RENT.
+
+More example Jupyter notebooks are to come soon.
 
 
 # Requirements
@@ -27,5 +29,5 @@ hoggorm >= 0.13.3
 
 A webhook to ReadTheDocs will be established soon. Until then, please see the docstrings inside the code. There you will find information on input parameters, etc.
 
-Documentation at ReadTheDocs (no webhook yet): https://rent.readthedocs.io/en/latest/
+Documentation at [ReadTheDocs](https://rent.readthedocs.io/en/latest/)
 

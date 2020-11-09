@@ -1214,7 +1214,7 @@ class RENT_Classification(RENT_Base):
                                                     model.predict(test_FS1)))
                     
         p_value_FS1 = sum(FS1 > score) / len(FS1)
-        print("p-value average score random feature drawing: ", p_value_FS1)
+        print("FS1: p-value for average score from random feature drawing: ", p_value_FS1)
         if p_value_FS1 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
@@ -1254,19 +1254,22 @@ class RENT_Classification(RENT_Base):
                         model.predict(test_FS2)))
 
         p_value_FS2 = sum(FS2 > score) / len(FS2)
-        print("p-value score permutation of test labels: ", p_value_FS2)
+        print("FS2: p-value for score from permutation of test labels: ", p_value_FS2)
         if p_value_FS2 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
             print('With a significancelevel of ', alpha, ' H0 is accepted.')
             
-        plt.figure()
+        plt.figure(figsize=(15, 7))
         sns.kdeplot(FS1, shade=True, color="b", label='FS1')
         sns.kdeplot(FS2, shade=True, color="g", label='FS2')
         plt.axvline(x=score, color='r', linestyle='--', 
                     label='RENT prediction score')
-        plt.legend()
-        plt.title('Feasibility Study')
+        plt.legend(prop={'size': 12})
+        plt.ylabel('density', fontsize=14)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.title('Feasibility Study', fontsize=18)
 
 class RENT_Regression(RENT_Base):
     """
@@ -1920,7 +1923,7 @@ class RENT_Regression(RENT_Base):
             FS1.append(r2_score(test_labels, model.predict(test_FS1)))
             
         p_value_FS1 = sum(FS1 > score) / len(FS1)
-        print("p-value average score random feature drawing: ", p_value_FS1)
+        print("FS1: p-value for average score from random feature drawing: ", p_value_FS1)
         if p_value_FS1 <= alpha:
             print('With a significancelevel of ',alpha,' H0 is rejected.')
         else:
@@ -1946,17 +1949,20 @@ class RENT_Regression(RENT_Base):
                     model.predict(test_FS2)))
 
         p_value_FS2 = sum(FS2 > score) / len(FS2)
-        print("p-value score permutation of test labels: ", p_value_FS2)
+        print("FS2: p-value for score from permutation of test labels: ", p_value_FS2)
         if p_value_FS2 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
             print('With a significancelevel of ', alpha, ' H0 is accepted.')
             
-        plt.figure()
+        plt.figure(figsize=(15, 7))
         sns.kdeplot(FS1, shade=True, color="b", label='FS1')
         sns.kdeplot(FS2, shade=True, color="g", label='FS2')
         plt.axvline(x=score, color='r', linestyle='--', 
                     label='RENT prediction score')
-        plt.legend()
-        plt.title('Feasibility Study')
+        plt.legend(prop={'size': 12})
+        plt.ylabel('density', fontsize=14)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.title('Feasibility Study', fontsize=18)
     

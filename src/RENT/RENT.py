@@ -170,7 +170,7 @@ class RENT_Base(ABC):
         return(weights_df)
     
         
-    def plot_object_PCA(self, cl=0, comp1=1, comp2=2):
+    def plot_object_PCA(self, cl=0, comp1=1, comp2=2, sel_vars=True):
         """
         Applies principal component analysis on data containing only selected features.
 
@@ -213,18 +213,26 @@ class RENT_Base(ABC):
         if cl != 'continuous':
             dat = pd.merge(self.data, self.incorrect_labels.iloc[:,[1,-1]], \
                                  left_index=True, right_index=True)
-            variables = list(self.sel_var)
-            variables.extend([-2,-1])
+            if sel_vars == True:
+                variables = list(self.sel_var)
+                variables.extend([-2,-1])
         else:
             dat = pd.merge(self.data, self.incorrect_labels.iloc[:,-1], \
                                      left_index=True, right_index=True)
-            variables = list(self.sel_var)
-            variables.extend([-1])
+            if sel_vars == True:
+                variables = list(self.sel_var)
+                variables.extend([-1])
     
         if cl == 'both' or cl == 'continuous':
-            data = dat.iloc[:,variables]
+            if sel_vars == True:
+                data = dat.iloc[:,variables]
+            else:
+                data = dat
         else:
-            data = dat.iloc[np.where(dat.iloc[:,-2]==cl)[0],variables]
+            if sel_vars == True:
+                data = dat.iloc[np.where(dat.iloc[:,-2]==cl)[0],variables]
+            else:
+                data = dat
             
         if cl != 'continuous':
             data = data.sort_values(by='% incorrect')
@@ -239,11 +247,16 @@ class RENT_Base(ABC):
         scores.columns = ['PC{0}'.format(x+1) for x in \
                                  range(pca_model.X_scores().shape[1])]
         scores['coloring'] = data.iloc[:,-1]
-    
+        
+        XexplVar = pca_model.X_calExplVar()
+        var_comp1 = round(XexplVar[comp1-1], 1)
+        var_comp2 = round(XexplVar[comp2-1], 1)
+        
+        
         fig, ax = plt.subplots()
-        ax.set_xlabel('PC' + str(comp1))
-        ax.set_ylabel('PC' + str(comp2))
-        ax.set_title('Scatterplot')
+        ax.set_xlabel('comp ' + str(comp1) +' ('+str(var_comp1)+'%)', fontsize=20)
+        ax.set_ylabel('comp ' + str(comp2) +' ('+str(var_comp2)+'%)', fontsize=20)
+        ax.set_title('Scores plot', fontsize=20)
         ax.set_facecolor('silver')
         
         # Find maximum and minimum scores along the two components
@@ -278,9 +291,9 @@ class RENT_Base(ABC):
         yMinLine = yMin - extraY
     
         ax.plot([0, 0], [yMaxLine, yMinLine], color='0.4', linestyle='dashed',
-                linewidth=1)
+                linewidth=3)
         ax.plot([xMinLine, xMaxLine], [0, 0], color='0.4', linestyle='dashed',
-                linewidth=1)
+                linewidth=3)
     
         # Set limits for plot regions.
         xMaxLim = xMax + limX
@@ -315,24 +328,30 @@ class RENT_Base(ABC):
                         scores.iloc[zeroes,(comp2-1)], 
                         c= scores.iloc[zeroes,-1], 
                         cmap='Greens',
-                        marker='*',
+                        marker="^",
+#                        s=120,
+#                        edgecolors='none',
                         alpha=0.5)
             cbar = plt.colorbar()
-            cbar.set_label('% incorrect predicted class 0')
+            cbar.ax.tick_params(labelsize=20)
+            cbar.set_label('% incorrect predicted class 0', fontsize=20)
             plt.scatter(scores.iloc[ones,(comp1-1)], 
                         scores.iloc[ones,(comp2-1)], 
                         c= scores.iloc[ones,-1], 
                         cmap='Reds',
+#                        edgecolors='none',
+ #                       s=120,
                         alpha=0.5)
             cbar = plt.colorbar()
-            cbar.set_label('% incorrect predicted class 1')
+            cbar.ax.tick_params(labelsize=20)
+            cbar.set_label('% incorrect predicted class 1', fontsize=20)
             
             mlist = []
             col_list = []
     
             for i in range(len(data.index)):
                 if data.iloc[i,-2]==0:
-                    mlist.append("*")
+                    mlist.append("^")
                 else:
                     mlist.append("o")
     
@@ -345,6 +364,7 @@ class RENT_Base(ABC):
                     col_list.append('mediumspringgreen')
                 elif data.iloc[i,-2]==1 and data.iloc[i,-1]>0 and data.iloc[i,-1]<50:
                     col_list.append('tomato')
+                elif data.iloc[i,-2]==0 and data.iloc[i,-1]>=50 and data.iloc[i,-1]<100: 
                     col_list.append('green')
                 elif data.iloc[i,-2]==1 and data.iloc[i,-1]>=50 and data.iloc[i,-1]<100: 
                     col_list.append('red')   
@@ -365,9 +385,10 @@ class RENT_Base(ABC):
                         cmap='YlOrRd')
             cbar = plt.colorbar()
             cbar.set_label('average absolute error')
-    
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
         objnames = list(data.index.astype('str'))
-        hopl.plot(pca_model, plots=[1,2,3,4,6], comp = [comp1,comp2],
+        hopl.plot(pca_model, plots=[1,2], comp = [comp1,comp2],
                   objNames=objnames, XvarNames=list(data.columns[:-2]))
         
         
@@ -395,7 +416,7 @@ class RENT_Base(ABC):
         None.
 
         """
-        if self.parameter_selection == True:
+        if self.autoEnetParSel == True:
             return self._scores_df_cv, self._zeroes_df_cv, self._combination_cv
         else:
             print("Parameters have not been selected with Cross Validation.")
@@ -505,7 +526,7 @@ class RENT_Classification(RENT_Base):
     """
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
-                 parameter_selection=True, poly='OFF', 
+                 autoEnetParSel=True, poly='OFF', 
                  testsize_range=(0.2, 0.6), scoring='accuracy', 
                  method='logreg', K=100, scale = True, verbose = 0):
         
@@ -513,8 +534,8 @@ class RENT_Classification(RENT_Base):
             sys.exit('C values must not be negative!')
         if any(l < 0 for l in l1_ratios) or any(l > 1 for l in l1_ratios):
             sys.exit('l1 ratios must be in [0,1]!')
-        if parameter_selection not in [True, False]:
-            sys.exit('parameter_selection must be True or False!')
+        if autoEnetParSel not in [True, False]:
+            sys.exit('autoEnetParSel must be True or False!')
         if scale not in [True, False]:
             sys.exit('scale must be True or False!')
         if poly not in ['ON', 'ON_only_interactions', 'OFF']:
@@ -550,14 +571,22 @@ class RENT_Classification(RENT_Base):
         self.testsize_range = testsize_range
         self.scale = scale
         self.verbose = verbose
-        self.parameter_selection = parameter_selection
+        self.autoEnetParSel = autoEnetParSel
         
         
         # Check if data is dataframe and add index information
         if isinstance(data, pd.DataFrame):
-            self.indices = data.index
+            if isinstance(data.index, list):
+                self.indices = data.index
+            else:
+                data.index = list(data.index)
+                self.indices = data.index
         else:
             self.indices = list(range(data.shape[0]))
+        
+        if isinstance(self.target, pd.Series):
+            self.target.index = data.index
+    
 
 
         # If no feature names are given, then make some
@@ -619,7 +648,7 @@ class RENT_Classification(RENT_Base):
         else:
             sys.exit('Value for paramter "poly" not regcognised.')
         
-        if self.parameter_selection == True:
+        if self.autoEnetParSel == True:
             self.C, self.l1_ratios = self.par_selection(C=C, l1_ratios=l1_ratios)
             self.C = [self.C]
             self.l1_ratios = [self.l1_ratios]
@@ -642,13 +671,12 @@ class RENT_Classification(RENT_Base):
 
         # Loop through all C 
         for C in self.C:
-            # Loop through requested number of tt splits
             for l1 in self.l1_ratios:
                 
                 X_train, X_test, y_train, y_test = train_test_split(
                       self.data, self.target, 
                       test_size=self.random_testsizes[K],
-                      stratify=self.target, random_state=K)
+                      stratify=self.target, random_state=None)
                 
 #                self.train_sets.append(X_train)
                 self.X_test = X_test
@@ -676,7 +704,7 @@ class RENT_Classification(RENT_Base):
                                             l1_ratio=l1,
                                             n_jobs=-1,
                                             max_iter=5000,
-                                            random_state=0).\
+                                            random_state=None).\
                                             fit(X_train_std, y_train)
                     
                 # elif self.method == 'linSVC':
@@ -746,7 +774,7 @@ class RENT_Classification(RENT_Base):
         None 
         """
         #check if this is needed and does what it should (probably doesn't work because of parallelization)
-        np.random.seed(0)
+        # np.random.seed(0)
         self.random_testsizes = np.random.uniform(self.testsize_range[0],
                                                   self.testsize_range[1], 
                                                   self.K)
@@ -778,7 +806,7 @@ class RENT_Classification(RENT_Base):
         Parallel(n_jobs=-1, verbose=0, backend='threading')(
              map(delayed(self.run_parallel), range(self.K)))  
         ende = time.time()
-        self._runtime = '{:5.3f}s'.format(ende-start)
+        self._runtime =  ende - start #'{:5.3f}s'.format(ende-start)
         
         # Build a dictionary with the prediction probabilities
         for C in self.C:
@@ -1037,8 +1065,13 @@ class RENT_Classification(RENT_Base):
         <pandas dataframe>
 
         """
+<<<<<<< Updated upstream
         #if not hasattr(self, 'pp_data'):
         #    sys.exit('Run train() first!')
+=======
+        if not hasattr(self, 'pred_proba_dict'):
+            sys.exit('Run train() first!')
+>>>>>>> Stashed changes
         # predicted probabilities only if Logreg
         if self.method != 'logreg':
             return warnings.warn('Classification method must be "logreg"!')
@@ -1121,7 +1154,7 @@ class RENT_Classification(RENT_Base):
                 ax.set_ylabel('frequencies')
                 ax.set_xlabel('ProbC1')
             ax.set_title('Object: {0}, True class: {1}'.format(obj, \
-                         target_objects.loc[obj,0]), fontsize=10)
+                         target_objects.loc[obj,:].values[0]), fontsize=10)
                 
 
 
@@ -1182,7 +1215,7 @@ class RENT_Classification(RENT_Base):
         elif metric == 'acc':
             score = accuracy_score(test_labels, model.predict(test_RENT))
         
-        
+        print(score)
         # FS1
         FS1 = []
         for K in range(num_drawings):
@@ -1212,9 +1245,16 @@ class RENT_Classification(RENT_Base):
             elif metric == 'acc':
                 FS1.append(accuracy_score(test_labels, \
                                                     model.predict(test_FS1)))
+<<<<<<< Updated upstream
                     
         p_value_FS1 = sum(FS1 > score) / len(FS1)
         print("FS1: p-value for average score from random feature drawing: ", p_value_FS1)
+=======
+        print(FS1)
+        print(score)
+        p_value_FS1 = sum(np.array(FS1) > score) / len(FS1)
+        print("p-value average score random feature drawing: ", p_value_FS1)
+>>>>>>> Stashed changes
         if p_value_FS1 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
@@ -1253,8 +1293,13 @@ class RENT_Classification(RENT_Base):
                         np.random.RandomState(seed=K).permutation(test_labels),\
                         model.predict(test_FS2)))
 
+<<<<<<< Updated upstream
         p_value_FS2 = sum(FS2 > score) / len(FS2)
         print("FS2: p-value for score from permutation of test labels: ", p_value_FS2)
+=======
+        p_value_FS2 = sum(np.array(FS2) > score) / len(FS2)
+        print("p-value score permutation of test labels: ", p_value_FS2)
+>>>>>>> Stashed changes
         if p_value_FS2 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
@@ -1326,7 +1371,7 @@ class RENT_Regression(RENT_Base):
     None 
     """
     
-    def __init__(self, data, target, feat_names=[], parameter_selection=True,
+    def __init__(self, data, target, feat_names=[], autoEnetParSel=True,
                  C=[1,10], l1_ratios = [0.6],
                  poly='OFF', testsize_range=(0.2, 0.6),
                  K=5, scale=True, verbose = 0):
@@ -1335,8 +1380,8 @@ class RENT_Regression(RENT_Base):
             sys.exit('C values must not be negative!')
         if any(l < 0 for l in l1_ratios) or any(l > 1 for l in l1_ratios):
             sys.exit('l1 ratios must be in [0,1]!')
-        if parameter_selection not in [True, False]:
-            sys.exit('parameter_selection must be True or False!')
+        if autoEnetParSel not in [True, False]:
+            sys.exit('autoEnetParSel must be True or False!')
         if scale not in [True, False]:
             sys.exit('scale must be True or False!')
         if poly not in ['ON', 'ON_only_interactions', 'OFF']:
@@ -1365,7 +1410,7 @@ class RENT_Regression(RENT_Base):
         self.scale = scale
         self.testsize_range = testsize_range
         self.verbose = verbose
-        self.parameter_selection = parameter_selection
+        self.autoEnetParSel = autoEnetParSel
         
         
         # Check if data is dataframe and add index information
@@ -1435,7 +1480,7 @@ class RENT_Regression(RENT_Base):
             sys.exit('Value for paramter "poly" not regcognised.')
             
             
-        if self.parameter_selection == True:
+        if self.autoEnetParSel == True:
             self.C, self.l1_ratios = self.par_selection(C=C, l1_ratios=l1_ratios)
             self.C = [self.C]
             self.l1_ratios = [self.l1_ratios]
@@ -1595,7 +1640,7 @@ class RENT_Regression(RENT_Base):
                 X_train, X_test, y_train, y_test = train_test_split(
                           self.data, self.target, 
                           test_size=self.random_testsizes[K],
-                          random_state=K)
+                          random_state=None)
                 
 #                self.train_sets.append(X_train)
                 self.X_test = X_test
@@ -1616,7 +1661,7 @@ class RENT_Regression(RENT_Base):
                     print('l1 = ', l1, 'C = ', C, ', TT split = ', K)
 
                 model = ElasticNet(alpha=1/C, l1_ratio=l1,
-                                       max_iter=5000, random_state=0, \
+                                       max_iter=5000, random_state=None, \
                                        fit_intercept=False).\
                                        fit(X_train_std, y_train)
 
@@ -1681,7 +1726,7 @@ class RENT_Regression(RENT_Base):
         Parallel(n_jobs=-1, verbose=0, backend='threading')(
              map(delayed(self.run_parallel), range(self.K)))  
         ende = time.time()
-        self._runtime = '{:5.3f}s'.format(ende-start)
+        self._runtime = ende-start
         
         # find best parameter setting and matrices
         result_list=[]

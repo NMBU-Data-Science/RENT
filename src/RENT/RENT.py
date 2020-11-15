@@ -254,9 +254,9 @@ class RENT_Base(ABC):
         
         
         fig, ax = plt.subplots()
-        ax.set_xlabel('comp ' + str(comp1) +' ('+str(var_comp1)+'%)', fontsize=20)
-        ax.set_ylabel('comp ' + str(comp2) +' ('+str(var_comp2)+'%)', fontsize=20)
-        ax.set_title('Scores plot', fontsize=20)
+        ax.set_xlabel('comp ' + str(comp1) +' ('+str(var_comp1)+'%)', fontsize=10)
+        ax.set_ylabel('comp ' + str(comp2) +' ('+str(var_comp2)+'%)', fontsize=10)
+        ax.set_title('Scores plot', fontsize=10)
         ax.set_facecolor('silver')
         
         # Find maximum and minimum scores along the two components
@@ -333,8 +333,8 @@ class RENT_Base(ABC):
 #                        edgecolors='none',
                         alpha=0.5)
             cbar = plt.colorbar()
-            cbar.ax.tick_params(labelsize=20)
-            cbar.set_label('% incorrect predicted class 0', fontsize=20)
+            cbar.ax.tick_params(labelsize=10)
+            cbar.set_label('% incorrect predicted class 0', fontsize=10)
             plt.scatter(scores.iloc[ones,(comp1-1)], 
                         scores.iloc[ones,(comp2-1)], 
                         c= scores.iloc[ones,-1], 
@@ -343,8 +343,8 @@ class RENT_Base(ABC):
  #                       s=120,
                         alpha=0.5)
             cbar = plt.colorbar()
-            cbar.ax.tick_params(labelsize=20)
-            cbar.set_label('% incorrect predicted class 1', fontsize=20)
+            cbar.ax.tick_params(labelsize=10)
+            cbar.set_label('% incorrect predicted class 1', fontsize=10)
             
             mlist = []
             col_list = []
@@ -385,8 +385,8 @@ class RENT_Base(ABC):
                         cmap='YlOrRd')
             cbar = plt.colorbar()
             cbar.set_label('average absolute error')
-        plt.xticks(fontsize=20)
-        plt.yticks(fontsize=20)
+        plt.xticks(fontsize=10)
+        plt.yticks(fontsize=10)
         objnames = list(data.index.astype('str'))
         hopl.plot(pca_model, plots=[1,2], comp = [comp1,comp2],
                   objNames=objnames, XvarNames=list(data.columns[:-2]))

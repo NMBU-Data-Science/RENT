@@ -38,7 +38,7 @@ class RENT_Base(ABC):
     """
     
     @abstractmethod
-    def feasibility_study(self, test_data, test_labels, num_drawings, 
+    def validation_study(self, test_data, test_labels, num_drawings, 
                           num_permutations):
         pass
     
@@ -312,14 +312,14 @@ class RENT_Base(ABC):
                         c= scores['coloring'], 
                         cmap='Greens')
             cbar = plt.colorbar()
-            cbar.set_label('% incorrect predicted class 0')
+            cbar.set_label('% incorrect predicted class 0', fontsize=10)
         elif cl == 1:
             plt.scatter(scores['PC'+str(comp1)], 
                         scores['PC'+str(comp2)], 
                         c= scores['coloring'], 
                         cmap='Reds')
             cbar = plt.colorbar()
-            cbar.set_label('% incorrect predicted class 1')
+            cbar.set_label('% incorrect predicted class 1', fontsize=10)
         elif cl == 'both':
             zeroes = np.where(data.iloc[:,-2]==0)[0]
             ones = np.where(data.iloc[:,-2]==1)[0]
@@ -1155,22 +1155,22 @@ class RENT_Classification(RENT_Base):
                 
 
 
-    def feasibility_study(self, test_data, test_labels, num_drawings, num_permutations,
+    def validation_study(self, test_data, test_labels, num_drawings, num_permutations,
                           metric='mcc', alpha=0.05):
         """
-        Feasibiliyt study based on a statistical hypothesis test. 
+        Validation study based on a statistical hypothesis test. 
         H0: RENT is not better than random feature selection.
 
         Parameters
         ----------
         test_data : <numpy array> or <pandas dataframe>
-            Dataset used to evalute Logistic Models in the feasibility study.
+            Dataset used to evalute Logistic Models in the validation study.
         test_lables: <numpy array> or <pandas dataframe>
             Response variable of data.
         num_drawings: <int>
-            Number of independent feature subset drawings for FS1, see paper.
+            Number of independent feature subset drawings for VS1, see paper.
         num_permutations: <int>
-            Number of independent test_labels permutations for FS2, see paper.
+            Number of independent test_labels permutations for VS2, see paper.
         metric: <str>
         The metric to evaluate K models. Default: "mcc".
         options: 
@@ -1211,10 +1211,9 @@ class RENT_Classification(RENT_Base):
             score = f1_score(test_labels, model.predict(test_RENT))
         elif metric == 'acc':
             score = accuracy_score(test_labels, model.predict(test_RENT))
-        
-        print(score)
-        # FS1
-        FS1 = []
+            
+        # VS1
+        VS1 = []
         for K in range(num_drawings):
             # Randomly select features (# features = # RENT features selected)
             columns = np.random.RandomState(seed=K).choice(
@@ -1222,95 +1221,88 @@ class RENT_Classification(RENT_Base):
                                     len(self.sel_var))
             if self.scale == True:
                 sc = StandardScaler()
-                train_FS1 = sc.fit_transform(self.data.iloc[:, columns])
-                test_FS1 = sc.transform(test_data.iloc[:, columns])
+                train_VS1 = sc.fit_transform(self.data.iloc[:, columns])
+                test_VS1 = sc.transform(test_data.iloc[:, columns])
             elif self.scale == False:
-                train_FS1 = self.data.iloc[:, columns].values
-                test_FS1 = test_data.iloc[:, columns].values
+                train_VS1 = self.data.iloc[:, columns].values
+                test_VS1 = test_data.iloc[:, columns].values
             if self.method == 'logreg':
                 model = LogisticRegression(penalty='none', max_iter=8000, 
                                            solver="saga", random_state=0).\
-                    fit(train_FS1,self.target)
+                    fit(train_VS1,self.target)
             else:
                 print("something")
             if metric == 'mcc':
-                FS1.append(matthews_corrcoef(test_labels, \
-                                                    model.predict(test_FS1)))
+                VS1.append(matthews_corrcoef(test_labels, \
+                                                    model.predict(test_VS1)))
             elif metric == 'f1':
-                FS1.append(f1_score(test_labels, \
-                                                    model.predict(test_FS1)))
+                VS1.append(f1_score(test_labels, \
+                                                    model.predict(test_VS1)))
             elif metric == 'acc':
-                FS1.append(accuracy_score(test_labels, \
-                                                    model.predict(test_FS1)))
+                VS1.append(accuracy_score(test_labels, \
+                                                    model.predict(test_VS1)))
                     
-        p_value_FS1 = sum(FS1 > score) / len(FS1)
-        print("FS1: p-value for average score from random feature drawing: ", p_value_FS1)
+        p_value_VS1 = sum(VS1 > score) / len(VS1)
+        print("VS1: p-value for average score from random feature drawing: ", p_value_VS1)
 
-        print(FS1)
-        print(score)
-        p_value_FS1 = sum(np.array(FS1) > score) / len(FS1)
-        print("p-value average score random feature drawing: ", p_value_FS1)
 
-        if p_value_FS1 <= alpha:
+        if p_value_VS1 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
             print('With a significancelevel of ', alpha, ' H0 is accepted.')
         print(' ')
         print('-------------------------------------------------')
         print(' ')
-        # FS2
+        # VS2
         sc = StandardScaler()
         test_data.columns = self.data.columns
-        FS2 = []
+        VS2 = []
         if self.scale == True:
-            train_FS2 = sc.fit_transform(self.data.iloc[:,self.sel_var])
-            test_FS2 = sc.transform(test_data.iloc[:, self.sel_var])
+            train_VS2 = sc.fit_transform(self.data.iloc[:,self.sel_var])
+            test_VS2 = sc.transform(test_data.iloc[:, self.sel_var])
         elif self.scale == False:
-            train_FS2 = self.data.iloc[:,self.sel_var].values
-            test_FS2 = test_data.iloc[:, self.sel_var].values
+            train_VS2 = self.data.iloc[:,self.sel_var].values
+            test_VS2 = test_data.iloc[:, self.sel_var].values
         if self.method == 'logreg':
             model = LogisticRegression(penalty='none', max_iter=8000, 
                                        solver="saga", random_state=0 ).\
-                    fit(train_FS2, self.target)
+                    fit(train_VS2, self.target)
         else:
             print("add model")
             
         for K in range(num_permutations):
             if metric == 'mcc':
-                FS2.append(matthews_corrcoef(
+                VS2.append(matthews_corrcoef(
                         np.random.RandomState(seed=K).permutation(test_labels),\
-                        model.predict(test_FS2)))
+                        model.predict(test_VS2)))
             elif metric == 'f1':
-                FS2.append(f1_score(
+                VS2.append(f1_score(
                         np.random.RandomState(seed=K).permutation(test_labels),\
-                        model.predict(test_FS2)))
+                        model.predict(test_VS2)))
             elif metric == 'acc':
-                FS2.append(accuracy_score(
+                VS2.append(accuracy_score(
                         np.random.RandomState(seed=K).permutation(test_labels),\
-                        model.predict(test_FS2)))
+                        model.predict(test_VS2)))
 
 
-        p_value_FS2 = sum(FS2 > score) / len(FS2)
-        print("FS2: p-value for score from permutation of test labels: ", p_value_FS2)
+        p_value_VS2 = sum(VS2 > score) / len(VS2)
+        print("VS2: p-value for score from permutation of test labels: ", p_value_VS2)
 
-        p_value_FS2 = sum(np.array(FS2) > score) / len(FS2)
-        print("p-value score permutation of test labels: ", p_value_FS2)
-
-        if p_value_FS2 <= alpha:
+        if p_value_VS2 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
             print('With a significancelevel of ', alpha, ' H0 is accepted.')
             
         plt.figure(figsize=(15, 7))
-        sns.kdeplot(FS1, shade=True, color="b", label='FS1')
-        sns.kdeplot(FS2, shade=True, color="g", label='FS2')
+        sns.kdeplot(VS1, shade=True, color="b", label='VS1')
+        sns.kdeplot(VS2, shade=True, color="g", label='VS2')
         plt.axvline(x=score, color='r', linestyle='--', 
                     label='RENT prediction score')
         plt.legend(prop={'size': 12})
         plt.ylabel('density', fontsize=14)
         plt.xticks(fontsize=12)
         plt.yticks(fontsize=12)
-        plt.title('Feasibility Study', fontsize=18)
+        plt.title('validation Study', fontsize=18)
 
 class RENT_Regression(RENT_Base):
     """
@@ -1899,22 +1891,22 @@ class RENT_Regression(RENT_Base):
                 ax.set_xlabel('Absolute Error')
             ax.set_title('Object: {0}')
     
-    def feasibility_study(self, test_data, test_labels, 
+    def validation_study(self, test_data, test_labels, 
                           num_drawings, num_permutations, alpha=0.05):
         """
-        Feasibiliyt study based on a statistical hypothesis test. 
+        Validation study based on a statistical hypothesis test. 
         H0: RENT is not better than random feature selection.
 
         Parameters
         ----------
         test_data : <numpy array> or <pandas dataframe>
-            Dataset used to evalute Logistic Models in the feasibility study.
+            Dataset used to evalute Logistic Models in the validation study.
         test_lables: <numpy array> or <pandas dataframe>
             Response variable of data.
         num_drawings: <int>
-            Number of independent feature subset drawings for FS1, see paper.
+            Number of independent feature subset drawings for VS1, see paper.
         num_permutations: <int>
-            Number of independent test_labels permutations for FS2, see paper.
+            Number of independent test_labels permutations for VS2, see paper.
         metric: <str>
         The metric to evaluate K models. Default: "mcc".
         options: 
@@ -1943,8 +1935,8 @@ class RENT_Regression(RENT_Base):
 
         model = LinearRegression().fit(train_RENT,self.target)
         score = r2_score(test_labels, model.predict(test_RENT))
-        # FS1
-        FS1 = []
+        # VS1
+        VS1 = []
         for K in range(num_drawings):
             # Randomly select features (# features = # RENT features selected)
             columns = np.random.RandomState(seed=K).choice(
@@ -1953,57 +1945,57 @@ class RENT_Regression(RENT_Base):
             
             if self.scale == True:
                 sc = StandardScaler()
-                train_FS1 = sc.fit_transform(self.data.iloc[:, columns])
-                test_FS1 = sc.transform(test_data.iloc[:, columns])
+                train_VS1 = sc.fit_transform(self.data.iloc[:, columns])
+                test_VS1 = sc.transform(test_data.iloc[:, columns])
             elif self.scale == False:
-                train_FS1 = self.data.iloc[:, columns].values
-                test_FS1 = test_data.iloc[:, columns].values
+                train_VS1 = self.data.iloc[:, columns].values
+                test_VS1 = test_data.iloc[:, columns].values
 
-            model = LinearRegression().fit(train_FS1,self.target)
+            model = LinearRegression().fit(train_VS1,self.target)
 
-            FS1.append(r2_score(test_labels, model.predict(test_FS1)))
+            VS1.append(r2_score(test_labels, model.predict(test_VS1)))
             
-        p_value_FS1 = sum(FS1 > score) / len(FS1)
-        print("FS1: p-value for average score from random feature drawing: ", p_value_FS1)
-        if p_value_FS1 <= alpha:
+        p_value_VS1 = sum(VS1 > score) / len(VS1)
+        print("VS1: p-value for average score from random feature drawing: ", p_value_VS1)
+        if p_value_VS1 <= alpha:
             print('With a significancelevel of ',alpha,' H0 is rejected.')
         else:
             print('With a significancelevel of ',alpha,' H0 is accepted.')
         print(' ')
         print('-------------------------------------------------')
         print(' ')
-        # FS2
+        # VS2
         test_data.columns = self.data.columns
-        FS2 = []
+        VS2 = []
         if self.scale == True:
             sc = StandardScaler()
-            train_FS2 = sc.fit_transform(self.data.iloc[:,self.sel_var])
-            test_FS2 = sc.transform(test_data.loc[:, self.sel_var])
+            train_VS2 = sc.fit_transform(self.data.iloc[:,self.sel_var])
+            test_VS2 = sc.transform(test_data.loc[:, self.sel_var])
         elif self.scale == False:
-            train_FS2 = self.data.iloc[:,self.sel_var].values
-            test_FS2 = test_data.loc[:, self.sel_var].values
+            train_VS2 = self.data.iloc[:,self.sel_var].values
+            test_VS2 = test_data.loc[:, self.sel_var].values
 
-        model = LinearRegression().fit(train_FS2,self.target)
+        model = LinearRegression().fit(train_VS2,self.target)
         for K in range(num_permutations):
-            FS2.append(r2_score(
+            VS2.append(r2_score(
                     np.random.RandomState(seed=K).permutation(test_labels),\
-                    model.predict(test_FS2)))
+                    model.predict(test_VS2)))
 
-        p_value_FS2 = sum(FS2 > score) / len(FS2)
-        print("FS2: p-value for score from permutation of test labels: ", p_value_FS2)
-        if p_value_FS2 <= alpha:
+        p_value_VS2 = sum(VS2 > score) / len(VS2)
+        print("VS2: p-value for score from permutation of test labels: ", p_value_VS2)
+        if p_value_VS2 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
             print('With a significancelevel of ', alpha, ' H0 is accepted.')
             
         plt.figure(figsize=(15, 7))
-        sns.kdeplot(FS1, shade=True, color="b", label='FS1')
-        sns.kdeplot(FS2, shade=True, color="g", label='FS2')
+        sns.kdeplot(VS1, shade=True, color="b", label='VS1')
+        sns.kdeplot(VS2, shade=True, color="g", label='VS2')
         plt.axvline(x=score, color='r', linestyle='--', 
                     label='RENT prediction score')
         plt.legend(prop={'size': 12})
         plt.ylabel('density', fontsize=14)
         plt.xticks(fontsize=12)
         plt.yticks(fontsize=12)
-        plt.title('Feasibility Study', fontsize=18)
+        plt.title('validation Study', fontsize=18)
     

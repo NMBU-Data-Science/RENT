@@ -27,7 +27,7 @@ from sklearn.metrics import f1_score, precision_score, recall_score, \
                             matthews_corrcoef, r2_score, accuracy_score
 from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
-from sklearn.svm import LinearSVC
+
 
 from scipy.stats import t
 
@@ -1065,13 +1065,10 @@ class RENT_Classification(RENT_Base):
         <pandas dataframe>
 
         """
-<<<<<<< Updated upstream
-        #if not hasattr(self, 'pp_data'):
-        #    sys.exit('Run train() first!')
-=======
+
         if not hasattr(self, 'pred_proba_dict'):
             sys.exit('Run train() first!')
->>>>>>> Stashed changes
+
         # predicted probabilities only if Logreg
         if self.method != 'logreg':
             return warnings.warn('Classification method must be "logreg"!')
@@ -1245,16 +1242,15 @@ class RENT_Classification(RENT_Base):
             elif metric == 'acc':
                 FS1.append(accuracy_score(test_labels, \
                                                     model.predict(test_FS1)))
-<<<<<<< Updated upstream
                     
         p_value_FS1 = sum(FS1 > score) / len(FS1)
         print("FS1: p-value for average score from random feature drawing: ", p_value_FS1)
-=======
+
         print(FS1)
         print(score)
         p_value_FS1 = sum(np.array(FS1) > score) / len(FS1)
         print("p-value average score random feature drawing: ", p_value_FS1)
->>>>>>> Stashed changes
+
         if p_value_FS1 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
@@ -1293,13 +1289,13 @@ class RENT_Classification(RENT_Base):
                         np.random.RandomState(seed=K).permutation(test_labels),\
                         model.predict(test_FS2)))
 
-<<<<<<< Updated upstream
+
         p_value_FS2 = sum(FS2 > score) / len(FS2)
         print("FS2: p-value for score from permutation of test labels: ", p_value_FS2)
-=======
+
         p_value_FS2 = sum(np.array(FS2) > score) / len(FS2)
         print("p-value score permutation of test labels: ", p_value_FS2)
->>>>>>> Stashed changes
+
         if p_value_FS2 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:

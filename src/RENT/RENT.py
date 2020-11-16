@@ -518,7 +518,8 @@ class RENT_Classification(RENT_Base):
         Scale each of the K train datasets. Default: True
     
     verbose: <int>
-        Track the train process if value > 0.
+        Track the train process if value > 1. If value  = 1 only the overview
+        of RENT input will be shown.
     
     OUTPUT
     ------
@@ -551,15 +552,16 @@ class RENT_Classification(RENT_Base):
             # does not show warning...
             warnings.warn('Attention: K is very small!', DeprecationWarning)
         
-        # Print parameters for checking
-        print('data dimension:', np.shape(data), ' data type:', type(data))
-        print('target dimension', np.shape(target))
-        print('regularization parameters C:', C)
-        print('elastic net l1_ratios:', l1_ratios)
-        print('number of models in ensemble:', K)
-        print('scale:', scale)
-        print('classification method:', method)
-        print('verbose:', verbose)
+        # Print parameters for checking if verbose = True
+        if verbose == 1:
+            print('data dimension:', np.shape(data), ' data type:', type(data))
+            print('target dimension', np.shape(target))
+            print('regularization parameters C:', C)
+            print('elastic net l1_ratios:', l1_ratios)
+            print('number of models in ensemble:', K)
+            print('scale:', scale)
+            print('classification method:', method)
+            print('verbose:', verbose)
 
 
         # Define all objects needed later in methods below
@@ -693,7 +695,7 @@ class RENT_Classification(RENT_Base):
                     X_train_std = X_train.copy().values
                     X_test_std = X_test.copy().values
                 
-                if self.verbose > 0:
+                if self.verbose > 1:
                     print('C = ', C, 'l1 = ', l1, ', TT split = ', K)
 
                 if self.method == 'logreg':
@@ -1352,7 +1354,8 @@ class RENT_Regression(RENT_Base):
         Scale each of the K train datasets. Default: True
     
     verbose: <int>
-        Track the train process if value > 0.
+        Track the train process if value > 1. If value  = 1 only the overview
+        of RENT input will be shown.
     
     OUTPUT
     ------
@@ -1382,13 +1385,14 @@ class RENT_Regression(RENT_Base):
             warnings.warn('Attention: K is very small!', DeprecationWarning)
         
         # Print parameters for checking
-        print('data dimension:', np.shape(data), ' data type:', type(data))
-        print('target dimension', np.shape(target))
-        print('regularization parameters C:', C)
-        print('elastic net l1_ratios:', l1_ratios)
-        print('number of models in ensemble:', K)
-        print('scale:', scale)
-        print('verbose:', verbose)
+        if verbose == 1:
+            print('data dimension:', np.shape(data), ' data type:', type(data))
+            print('target dimension', np.shape(target))
+            print('regularization parameters C:', C)
+            print('elastic net l1_ratios:', l1_ratios)
+            print('number of models in ensemble:', K)
+            print('scale:', scale)
+            print('verbose:', verbose)
 
 
         # Define all objects needed later in methods below
@@ -1645,7 +1649,7 @@ class RENT_Regression(RENT_Base):
                     X_train_std = X_train.copy().values
                     X_test_std = X_test.copy().values
                 
-                if self.verbose > 0:
+                if self.verbose > 1:
                     print('l1 = ', l1, 'C = ', C, ', TT split = ', K)
 
                 model = ElasticNet(alpha=1/C, l1_ratio=l1,

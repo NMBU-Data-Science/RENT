@@ -1,5 +1,5 @@
-Welcome to the RENTdocumentation
-================================
+Welcome to the RENT documentation
+=================================
 
 .. toctree::
    :maxdepth: 2

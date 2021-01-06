@@ -6,3 +6,5 @@ Welcome to the RENT documentation
    :caption: Content
 
    quickstart
+   binary_classification
+   regression

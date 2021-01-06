@@ -17,12 +17,12 @@ sys.path.insert(0, os.path.abspath('.'))
 
 # -- Project information -----------------------------------------------------
 
-project = u'Hoggorm'
+project = u'RENT'
 copyright = u'2017-2020, Oliver Tomic'
 author = 'Oliver Tomic'
 
 # The full version, including alpha/beta/rc tags
-release = '0.13.3'
+release = '0.0.1'
 
 
 # -- General configuration ---------------------------------------------------

@@ -19,8 +19,6 @@ from abc import ABC, abstractmethod
 from itertools import combinations, combinations_with_replacement
 from joblib import Parallel, delayed
 
-
-
 from sklearn.linear_model import LogisticRegression, ElasticNet, \
     LinearRegression
 from sklearn.metrics import f1_score, precision_score, recall_score, \
@@ -144,9 +142,13 @@ class RENT_Base(ABC):
         plt.show()
 
 
-    def get_weight_distributions(self):
+    def get_weight_distributions(self, binary = False):
         """
         Feature weights over the K models (Beta matrix in paper).
+        
+        Parameters
+        ----------
+        binary: True or False
 
         Returns
         -------
@@ -167,48 +169,29 @@ class RENT_Base(ABC):
                         pd.DataFrame(self.weight_dict[k]))
         weights_df.index = ['K({0})'.format(x+1) for x in range(self.K)]
         weights_df.columns = self.feat_names
-        return(weights_df)
+        
+        if binary == True:
+            return((weights_df != 0).astype(np.int_))
+        else:
+            return(weights_df)
 
 
-    def plot_object_PCA(self, cl=0, comp1=1, comp2=2, sel_vars=True):
-        """
-        Applies principal component analysis on data containing only selected features.
+    
+    def plot_object_PCA(self, cl=0, comp1=1, comp2=2, 
+                        problem='class', sel_vars=True):
 
-        For classification:
-            - user may select from the following:
-                - PCA on class 0
-                - PCA on class 1
-                - PCA on both classes
-            - colouring of PCA scores depends on number of misclassfications across
-              ensemble predictions.
-
-        For regression:
-        PCA applied to all samples. Colouring by average absolute error across
-        ensemble predictions.
-
-        Parameters
-        ----------
-        cl : <int> or <str>
-            - For classification problem:
-                - <int>: 0 or 1 for class 0 or class 1, respectively;
-                - <str>: 'both' for both classes.
-
-            - For regression problem:
-                - <str>: 'continuous'
-        comp1: <int> First component to plot
-        comp2: <int> Second component to plot
-
-        Returns
-        -------
-        None.
-
-        """
         if cl not in [0, 1, 'both', 'continuous']:
-            sys.exit(" 'group' must be either 0, 1, 'both' or 'continuous'")
+            sys.exit(" 'cl' must be either 0, 1, 'both' or 'continuous'")
+        if problem not in ['class', 'regression']:
+            sys.exit(" 'problem' must be either 'class' or 'regression' ")
         if not hasattr(self, 'sel_var'):
             sys.exit('Run selectFeatures() first!')
         if not hasattr(self, 'incorrect_labels'):
             sys.exit('Run summary_objects() first!')
+        if problem == "regression" and cl != "continuous":
+            sys.exit("The input is invalid. For 'problem = regression', 'cl' \
+                     must be 'continuous' ")
+        # catch if classification with continuous. (check if RENT class or RENT reg)
 
         if cl != 'continuous':
             dat = pd.merge(self.data, self.incorrect_labels.iloc[:,[1,-1]], \
@@ -217,8 +200,17 @@ class RENT_Base(ABC):
                 variables = list(self.sel_var)
                 variables.extend([-2,-1])
         else:
-            dat = pd.merge(self.data, self.incorrect_labels.iloc[:,-1], \
-                                     left_index=True, right_index=True)
+            
+            if problem == "regression":
+                dat = pd.merge(self.data, self.incorrect_labels.iloc[:,-1], \
+                                         left_index=True, right_index=True)
+            else:
+                obj_mean = pd.DataFrame(np.nanmean( \
+                        self.get_object_probabilities(), 1), \
+                    index=self.data.index)
+                obj_mean.columns = ["pred_means"]
+                dat = pd.merge(self.data, obj_mean, \
+                                         left_index=True, right_index=True)
             if sel_vars == True:
                 variables = list(self.sel_var)
                 variables.extend([-1])
@@ -233,7 +225,7 @@ class RENT_Base(ABC):
                 data = dat.iloc[np.where(dat.iloc[:,-2]==cl)[0],variables]
             else:
                 data = dat
-
+                
         if cl != 'continuous':
             data = data.sort_values(by='% incorrect')
             pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-2].values, \
@@ -241,7 +233,7 @@ class RENT_Base(ABC):
         else:
             pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-1].values, \
                                        Xstand=True, cvType=['loo'])
-
+        
         scores = pd.DataFrame(pca_model.X_scores())
         scores.index = list(data.index)
         scores.columns = ['PC{0}'.format(x+1) for x in \
@@ -384,12 +376,20 @@ class RENT_Base(ABC):
                         c=scores.iloc[:,-1],
                         cmap='YlOrRd')
             cbar = plt.colorbar()
-            cbar.set_label('average absolute error')
+            if problem == "class":
+                cbar.set_label('average object prediction')
+            else:
+                cbar.set_label('average absolute error')
         plt.xticks(fontsize=10)
         plt.yticks(fontsize=10)
         objnames = list(data.index.astype('str'))
-        hopl.plot(pca_model, plots=[1,2], comp = [comp1,comp2],
-                  objNames=objnames, XvarNames=list(data.columns[:-2]))
+        if cl != 'continuous':
+            hopl.plot(pca_model, plots=[1,2], comp = [comp1,comp2],
+                      objNames=objnames, XvarNames=list(data.columns[:-2]))
+        else:
+            hopl.plot(pca_model, plots=[1,2], comp = [comp1,comp2],
+                      objNames=objnames, XvarNames=list(data.columns[:-1]))
+        
 
 
     def get_enetParam_matrices(self):
@@ -529,7 +529,8 @@ class RENT_Classification(RENT_Base):
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
                  autoEnetParSel=True, poly='OFF',
                  testsize_range=(0.2, 0.6), scoring='accuracy',
-                 method='logreg', K=100, scale = True, verbose = 0):
+                 method='logreg', K=100, scale = True, random_state = None, 
+                 verbose = 0):
 
         if any(c < 0 for c in C):
             sys.exit('C values must not be negative!')
@@ -552,6 +553,7 @@ class RENT_Classification(RENT_Base):
             # does not show warning...
             warnings.warn('Attention: K is very small!', DeprecationWarning)
 
+
         # Print parameters for checking if verbose = True
         if verbose == 1:
             print('data dimension:', np.shape(data), ' data type:', type(data))
@@ -561,6 +563,7 @@ class RENT_Classification(RENT_Base):
             print('number of models in ensemble:', K)
             print('scale:', scale)
             print('classification method:', method)
+            print('random state:', random_state)
             print('verbose:', verbose)
 
 
@@ -574,6 +577,7 @@ class RENT_Classification(RENT_Base):
         self.scale = scale
         self.verbose = verbose
         self.autoEnetParSel = autoEnetParSel
+        self.random_state = random_state
 
 
         # Check if data is dataframe and add index information
@@ -674,11 +678,17 @@ class RENT_Classification(RENT_Base):
         # Loop through all C
         for C in self.C:
             for l1 in self.l1_ratios:
-
-                X_train, X_test, y_train, y_test = train_test_split(
-                      self.data, self.target,
-                      test_size=self.random_testsizes[K],
-                      stratify=self.target, random_state=None)
+                
+                if self.random_state == None:
+                    X_train, X_test, y_train, y_test = train_test_split(
+                          self.data, self.target,
+                          test_size=self.random_testsizes[K],
+                          stratify=self.target, random_state=None)
+                else:
+                    X_train, X_test, y_train, y_test = train_test_split(
+                          self.data, self.target,
+                          test_size=self.random_testsizes[K],
+                          stratify=self.target, random_state=K)
 
 #                self.train_sets.append(X_train)
                 self.X_test = X_test
@@ -706,7 +716,7 @@ class RENT_Classification(RENT_Base):
                                             l1_ratio=l1,
                                             n_jobs=-1,
                                             max_iter=5000,
-                                            random_state=None).\
+                                            random_state=self.random_state).\
                                             fit(X_train_std, y_train)
 
                 # elif self.method == 'linSVC':
@@ -915,7 +925,8 @@ class RENT_Classification(RENT_Base):
 
         """
 
-        skf = StratifiedKFold(n_splits=n_splits, random_state=0, shuffle=True)
+        skf = StratifiedKFold(n_splits=n_splits, random_state=self.random_state,\
+                              shuffle=True)
 
         scores_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
         zeroes_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
@@ -951,7 +962,7 @@ class RENT_Classification(RENT_Base):
 
                     sgd = LogisticRegression(penalty="elasticnet", C=reg,
                                              solver="saga", l1_ratio=l1,
-                                             random_state=0)
+                                             random_state=self.random_state)
                     sgd.fit(train_data, train_target)
 
                     params = np.where(sgd.coef_ != 0)[1]
@@ -971,7 +982,7 @@ class RENT_Classification(RENT_Base):
                         model = LogisticRegression(penalty='none',
                                                    max_iter=8000,
                                                    solver="saga",
-                                                   random_state=0).\
+                                                   random_state=self.random_state).\
                                 fit(train_data_1, train_target)
                         scores.append(matthews_corrcoef(test_target, \
                                         model.predict(test_data_1)))
@@ -1202,7 +1213,8 @@ class RENT_Classification(RENT_Base):
             test_RENT = test_data.iloc[:, self.sel_var].values
         if self.method == 'logreg':
                 model = LogisticRegression(penalty='none', max_iter=8000,
-                                           solver="saga", random_state=0).\
+                                           solver="saga", \
+                                           random_state=self.random_state).\
                     fit(train_RENT,self.target)
         else:
             print("something")
@@ -1230,7 +1242,8 @@ class RENT_Classification(RENT_Base):
                 test_VS1 = test_data.iloc[:, columns].values
             if self.method == 'logreg':
                 model = LogisticRegression(penalty='none', max_iter=8000,
-                                           solver="saga", random_state=0).\
+                                           solver="saga", 
+                                           random_state=self.random_state).\
                     fit(train_VS1,self.target)
             else:
                 print("something")
@@ -1267,7 +1280,8 @@ class RENT_Classification(RENT_Base):
             test_VS2 = test_data.iloc[:, self.sel_var].values
         if self.method == 'logreg':
             model = LogisticRegression(penalty='none', max_iter=8000,
-                                       solver="saga", random_state=0 ).\
+                                       solver="saga", 
+                                       random_state=self.random_state ).\
                     fit(train_VS2, self.target)
         else:
             print("add model")
@@ -1365,7 +1379,7 @@ class RENT_Regression(RENT_Base):
     def __init__(self, data, target, feat_names=[], autoEnetParSel=True,
                  C=[1,10], l1_ratios = [0.6],
                  poly='OFF', testsize_range=(0.2, 0.6),
-                 K=5, scale=True, verbose = 0):
+                 K=5, scale=True, random_state = None, verbose = 0):
 
         if any(c < 0 for c in C):
             sys.exit('C values must not be negative!')
@@ -1511,7 +1525,7 @@ class RENT_Regression(RENT_Base):
                  Second entry: suggested l1 ratio.
 
         """
-        skf = KFold(n_splits=n_splits, random_state=0, shuffle=True)
+        skf = KFold(n_splits=n_splits, random_state=self.random_state, shuffle=True)
 
         scores_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
         zeroes_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
@@ -1547,7 +1561,8 @@ class RENT_Regression(RENT_Base):
                         test_target = self.target[test]
 
                     sgd =  ElasticNet(alpha=1/reg, l1_ratio=l1,
-                                       max_iter=5000, random_state=0, \
+                                       max_iter=5000, 
+                                       random_state=self.random_state, \
                                        fit_intercept=False).\
                                        fit(train_data, train_target)
 
@@ -1628,11 +1643,17 @@ class RENT_Regression(RENT_Base):
         for C in self.C:
             # Loop through requested number of tt splits
             for l1 in self.l1_ratios:
-
-                X_train, X_test, y_train, y_test = train_test_split(
-                          self.data, self.target,
-                          test_size=self.random_testsizes[K],
-                          random_state=None)
+                
+                if self.random_state == None:
+                    X_train, X_test, y_train, y_test = train_test_split(
+                              self.data, self.target,
+                              test_size=self.random_testsizes[K],
+                              random_state=None)
+                else:
+                    X_train, X_test, y_train, y_test = train_test_split(
+                              self.data, self.target,
+                              test_size=self.random_testsizes[K],
+                              random_state=K)
 
 #                self.train_sets.append(X_train)
                 self.X_test = X_test

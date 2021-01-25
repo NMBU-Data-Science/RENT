@@ -27,7 +27,7 @@ from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 
-from scipy.stats import t
+from scipy.stats import t, ttest_1samp
 
 
 class RENT_Base(ABC):
@@ -1257,16 +1257,18 @@ class RENT_Classification(RENT_Base):
                 VS1.append(accuracy_score(test_labels, \
                                                     model.predict(test_VS1)))
 
-        p_value_VS1 = sum(VS1 > score) / len(VS1)
+        #p_value_VS1 = sum(VS1 > score) / len(VS1)
+        T = (np.mean(VS1) - score) / (np.std(VS1,ddof=1) / np.sqrt(len(VS1)))
+        print("mean VS1", np.mean(VS1))
+        p_value_VS1 = t.cdf(T, len(VS1)-1)
         print("VS1: p-value for average score from random feature drawing: ", p_value_VS1)
-
 
         if p_value_VS1 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
             print('With a significancelevel of ', alpha, ' H0 is accepted.')
         print(' ')
-        print('-------------------------------------------------')
+        print('-----------------------------------------------------------')
         print(' ')
         # VS2
         sc = StandardScaler()
@@ -1301,7 +1303,10 @@ class RENT_Classification(RENT_Base):
                         model.predict(test_VS2)))
 
 
-        p_value_VS2 = sum(VS2 > score) / len(VS2)
+        # p_value_VS2 = sum(VS2 > score) / len(VS2)
+        print("Mean VS2", np.mean(VS2))
+        T = (np.mean(VS2) - score) / (np.std(VS2,ddof=1) / np.sqrt(len(VS2)))
+        p_value_VS2 = t.cdf(T, len(VS2)-1)
         print("VS2: p-value for score from permutation of test labels: ", p_value_VS2)
 
         if p_value_VS2 <= alpha:
@@ -1406,6 +1411,7 @@ class RENT_Regression(RENT_Base):
             print('elastic net l1_ratios:', l1_ratios)
             print('number of models in ensemble:', K)
             print('scale:', scale)
+            print('random state:', random_state)
             print('verbose:', verbose)
 
 
@@ -1417,6 +1423,7 @@ class RENT_Regression(RENT_Base):
         self.testsize_range = testsize_range
         self.verbose = verbose
         self.autoEnetParSel = autoEnetParSel
+        self.random_state = random_state
 
 
         # Check if data is dataframe and add index information
@@ -1674,7 +1681,7 @@ class RENT_Regression(RENT_Base):
                     print('l1 = ', l1, 'C = ', C, ', TT split = ', K)
 
                 model = ElasticNet(alpha=1/C, l1_ratio=l1,
-                                       max_iter=5000, random_state=None, \
+                                       max_iter=5000, random_state=self.random_state, \
                                        fit_intercept=False).\
                                        fit(X_train_std, y_train)
 
@@ -1980,16 +1987,18 @@ class RENT_Regression(RENT_Base):
 
             VS1.append(r2_score(test_labels, model.predict(test_VS1)))
 
-        p_value_VS1 = sum(VS1 > score) / len(VS1)
+        T = (np.mean(VS1) - score) / (np.std(VS1,ddof=1) / np.sqrt(len(VS1)))
+        print("mean VS1", np.mean(VS1))
+        p_value_VS1 = t.cdf(T, len(VS1)-1)
         print("VS1: p-value for average score from random feature drawing: ", p_value_VS1)
+
         if p_value_VS1 <= alpha:
-            print('With a significancelevel of ',alpha,' H0 is rejected.')
+            print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
-            print('With a significancelevel of ',alpha,' H0 is accepted.')
+            print('With a significancelevel of ', alpha, ' H0 is accepted.')
         print(' ')
-        print('-------------------------------------------------')
+        print('-----------------------------------------------------------')
         print(' ')
-        # VS2
         test_data.columns = self.data.columns
         VS2 = []
         if self.scale == True:
@@ -2006,8 +2015,11 @@ class RENT_Regression(RENT_Base):
                     np.random.RandomState(seed=K).permutation(test_labels),\
                     model.predict(test_VS2)))
 
-        p_value_VS2 = sum(VS2 > score) / len(VS2)
+        print("Mean VS2", np.mean(VS2))
+        T = (np.mean(VS2) - score) / (np.std(VS2,ddof=1) / np.sqrt(len(VS2)))
+        p_value_VS2 = t.cdf(T, len(VS2)-1)
         print("VS2: p-value for score from permutation of test labels: ", p_value_VS2)
+
         if p_value_VS2 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:

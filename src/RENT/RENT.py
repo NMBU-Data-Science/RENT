@@ -27,7 +27,7 @@ from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 
-from scipy.stats import t, ttest_1samp
+from scipy.stats import t
 
 
 class RENT_Base(ABC):
@@ -167,7 +167,7 @@ class RENT_Base(ABC):
             if k[0] == self._best_C and k[1] == self._best_l1_ratio:
                 weights_df = weights_df.append( \
                         pd.DataFrame(self.weight_dict[k]))
-        weights_df.index = ['K({0})'.format(x+1) for x in range(self.K)]
+        weights_df.index = ['mod {0}'.format(x+1) for x in range(self.K)]
         weights_df.columns = self.feat_names
         
         if binary == True:
@@ -302,7 +302,8 @@ class RENT_Base(ABC):
             plt.scatter(scores['PC'+str(comp1)],
                         scores['PC'+str(comp2)],
                         c= scores['coloring'],
-                        cmap='Greens')
+                        cmap='Greens',
+                        marker ="^")
             cbar = plt.colorbar()
             cbar.set_label('% incorrect predicted class 0', fontsize=10)
         elif cl == 1:
@@ -384,10 +385,10 @@ class RENT_Base(ABC):
         plt.yticks(fontsize=10)
         objnames = list(data.index.astype('str'))
         if cl != 'continuous':
-            hopl.plot(pca_model, plots=[1,2], comp = [comp1,comp2],
+            hopl.plot(pca_model, plots=[1,2,3,4,6], comp = [comp1,comp2],
                       objNames=objnames, XvarNames=list(data.columns[:-2]))
         else:
-            hopl.plot(pca_model, plots=[1,2], comp = [comp1,comp2],
+            hopl.plot(pca_model, plots=[1,2,3,4,6], comp = [comp1,comp2],
                       objNames=objnames, XvarNames=list(data.columns[:-1]))
         
 
@@ -433,6 +434,8 @@ class RENT_Base(ABC):
         return self._best_C, self._best_l1_ratio
 
     def set_enet_params(self, C, l1):
+        if (C not in self.C) | (l1 not in self.l1_ratios):
+            sys.exit('autoEnetParSel was True - no weights calculated for this combination')
         self._best_C = C
         self._best_l1_ratio = l1
 
@@ -595,7 +598,7 @@ class RENT_Classification(RENT_Base):
 
 
 
-        # If no feature names are given, then make some
+        # If no feature names are given, create some
         if len(self.feat_names) == 0:
             print('No feature names found - automatic generate feature names.')
 
@@ -1089,7 +1092,7 @@ class RENT_Classification(RENT_Base):
             self.pp_data = self.pred_proba_dict[
                 (self._best_C, self._best_l1_ratio)].copy()
 
-            self.pp_data.columns = ['K({0})'.format(x+1) \
+            self.pp_data.columns = ['mod {0}'.format(x+1) \
                                         for x in range(
                                                 self.pp_data.shape[1])]
             return self.pp_data
@@ -1828,7 +1831,7 @@ class RENT_Regression(RENT_Base):
             specific_predictions.append(self.predictions_abs_errors[
                 (self._best_C, self._best_l1_ratio, K)])
         self._histogram_data = pd.concat(specific_predictions, axis=1)
-        self._histogram_data.columns = ['K({0})'.format(x+1) \
+        self._histogram_data.columns = ['mod {0}'.format(x+1) \
                                         for x in range(
                                                 self._histogram_data.shape[1])]
         count = self._histogram_data.count(axis=1)

@@ -3,5 +3,5 @@ RENT for regression
 
 Some info here.
 
-.. automodule:: RENT.RENT
+.. autoclass:: RENT.RENT.RENT_Regression
    :members:

@@ -3,5 +3,5 @@ RENT for binary classification
 
 Some info here.
 
-.. automodule:: RENT.RENT
+.. autoclass:: RENT.RENT.RENT_Classification
    :members:

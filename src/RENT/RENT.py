@@ -467,72 +467,81 @@ class RENT_Classification(RENT_Base):
     features that are included in the dataset and as such introduce
     non-linearities.
 
-    INPUT
+    PARAMETERS
     -----
 
-    data: <numpy array> or <pandas dataframe>
+    data : <numpy array> or <pandas dataframe>
         Dataset on which feature selection shall be performed.
         Dimension according to the paper: I_train x N
 
-    target: <numpy array> or <pandas dataframe>
+    target : <numpy array> or <pandas dataframe>
         Response variable of data.
-        Dimension: I_train x 1
+        Dimension: I_train x 1 or I_train x 0 when an row-array is used.
 
-    feat_names: <list>
+    feat_names : <list>
         List holding feature names. Preferably a list of string values.
 
-    C: <list of int or float values>
+    C : <list of int or float values>
         List holding regularisation parameters for K models. The lower,
         the stronger the regularization is .
 
-    l1_ratios: <list of int or float values>
+    l1_ratios : <list of int or float values>
         List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
         pure l2 use 0, for pure l1 use 1.
 
-    poly: <str>
-        - 'OFF', no feature interaction
-        - 'ON', feature interaction and squared features (2-polynoms)
-        - 'ON_only_interactions', (only feature interactions, no squared features)
+    autoEnetParSel : <boolean>
+        Cross validated elastic net hyperparameter selection.
+            - ``autoEnetParSel=True`` : peform a cross validation pre-hyperparameter search, s.t. RENT runs only with one hyperparamter setting.
+            - ``autoEnetParSel=False`` : perform RENT with each combination of ``C`` and ``l1_ratios``.
+        
+    poly : <str> 
+        Create non-linear features.
+            - ``poly='OFF'`` : no feature interaction.
+            - ``poly='ON'`` : feature interaction and squared features (2-polynoms).
+            - ``poly='ON_only_interactions'`` : only feature interactions, no squared features.
 
-
-    testsize_range: <tuple float>
+    testsize_range : <tuple float>
          Range of random proportion of dataset toinclude in test set,
          low and high are floats between 0 and 1, default (0.2, 0.6).
          Testsize can be fixed by setting low and high to the same value.
 
-
-    scoring: <str>
+    scoring : <str>
         The metric to evaluate K models. Default: "mcc".
-        options:
-            -'accuracy':  Accuracy
-            -'f1': F1-score
-            -'precision': Precision
-            -'recall': Recall
-            -'mcc': Matthews Correlation Coefficient
+            - ``scoring='accuracy'`` :  Accuracy
+            - ``scoring='f1'`` : F1-score
+            - ``scoring='precision'`` : Precision
+            - ``scoring='recall'``: Recall
+            - ``scoring='mcc'`` : Matthews Correlation Coefficient
 
-    classifier: <str>
-         options:
-             - 'logreg': Logistic Regression
+    classifier : <str>
+        Classifier used in RENT.
+            -``classifier='logreg'`` : Logistic Regression
 
-    K: <int>
-        Number of unique train-test splits. Default: 100.
+    K : <int>
+        Number of unique train-test splits. Default: ``K=100``.
 
-    scale:<boolean>
-        Scale each of the K train datasets. Default: True
-
-    verbose: <int>
-        Track the train process if value > 1. If value  = 1 only the overview
+    scale : <boolean>
+        Scale each of the K train datasets. Default: ``scale=True``.
+    
+    random_state : <None or int>
+        Set a random state to reproduce your results. Default: ``random_state=None``.
+        - ``random_state=None`` : no random seed. 
+        - ``random_state={0,1,2,...}`` : random seed set.
+        
+    verbose : <int>
+        Track the train process if value > 1. If ``value = 1``, only the overview
         of RENT input will be shown.
 
-    OUTPUT
+    RETURNS
     ------
-    None
+    class
+        A class that contains the RENT-Regression model.
     """
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
                  autoEnetParSel=True, poly='OFF',
                  testsize_range=(0.2, 0.6), scoring='accuracy',
-                 method='logreg', K=100, scale = True, random_state = None, 
+                 classifier='logreg', K=100, scale = True, random_state = None, 
                  verbose = 0):
 
         if any(c < 0 for c in C):
@@ -548,13 +557,15 @@ class RENT_Classification(RENT_Base):
         # for testsize range criteria should be added.
         if scoring not in ['accuracy', 'f1', 'mcc']:
             sys.exit('Invalid scoring!')
-        if method not in ['logreg', 'linSVC']:
-            sys.exit('Invalid method')
+        if classifier not in ['logreg', 'linSVC']:
+            sys.exit('Invalid classifier')
         if K<=0:
             sys.exit('Invalid K!')
         if K<10:
             # does not show warning...
             warnings.warn('Attention: K is very small!', DeprecationWarning)
+        if len(target.shape) == 2 :
+            target = target.values
 
 
         # Print parameters for checking if verbose = True
@@ -565,7 +576,7 @@ class RENT_Classification(RENT_Base):
             print('elastic net l1_ratios:', l1_ratios)
             print('number of models in ensemble:', K)
             print('scale:', scale)
-            print('classification method:', method)
+            print('classifier:', classifier)
             print('random state:', random_state)
             print('verbose:', verbose)
 
@@ -575,7 +586,7 @@ class RENT_Classification(RENT_Base):
         self.K = K
         self.feat_names = feat_names
         self.scoring = scoring
-        self.method = method
+        self.classifier = classifier
         self.testsize_range = testsize_range
         self.scale = scale
         self.verbose = verbose
@@ -711,7 +722,7 @@ class RENT_Classification(RENT_Base):
                 if self.verbose > 1:
                     print('C = ', C, 'l1 = ', l1, ', TT split = ', K)
 
-                if self.method == 'logreg':
+                if self.classifier == 'logreg':
                     # Trian a logistic regreission model
                     model = LogisticRegression(solver='saga',
                                             C=C,
@@ -722,7 +733,7 @@ class RENT_Classification(RENT_Base):
                                             random_state=self.random_state).\
                                             fit(X_train_std, y_train)
 
-                # elif self.method == 'linSVC':
+                # elif self.classifier == 'linSVC':
                 #     model = LinearSVC(penalty='l1',
                 #                     C=C,
                 #                     dual=False,
@@ -730,7 +741,7 @@ class RENT_Classification(RENT_Base):
                 #                     random_state=0).\
                 #                     fit(X_train_std, y_train)
                 else:
-                    sys.exit('No valid classification method.')
+                    sys.exit('No valid classifier.')
 
                 # Get all weights (coefficients). Those that were selected
                 # are non-zero, otherwise zero
@@ -767,7 +778,7 @@ class RENT_Classification(RENT_Base):
                 # calculate predict_proba for current train/test and weight
                 # initialization
                 self.predictions_dict[(C, l1, K)] = predictions
-                if(self.method == 'logreg'):
+                if(self.classifier == 'logreg'):
                     self.probas[(C, l1, K)] = pd.DataFrame( \
                            model.predict_proba(X_test_std), index = \
                                 X_test.index)
@@ -1086,8 +1097,8 @@ class RENT_Classification(RENT_Base):
             sys.exit('Run train() first!')
 
         # predicted probabilities only if Logreg
-        if self.method != 'logreg':
-            return warnings.warn('Classification method must be "logreg"!')
+        if self.classifier != 'logreg':
+            return warnings.warn('Classifier must be "logreg"!')
         else:
             self.pp_data = self.pred_proba_dict[
                 (self._best_C, self._best_l1_ratio)].copy()
@@ -1214,7 +1225,7 @@ class RENT_Classification(RENT_Base):
         elif self.scale == False:
             train_RENT = self.data.iloc[:, self.sel_var].values
             test_RENT = test_data.iloc[:, self.sel_var].values
-        if self.method == 'logreg':
+        if self.classifier == 'logreg':
                 model = LogisticRegression(penalty='none', max_iter=8000,
                                            solver="saga", \
                                            random_state=self.random_state).\
@@ -1243,7 +1254,7 @@ class RENT_Classification(RENT_Base):
             elif self.scale == False:
                 train_VS1 = self.data.iloc[:, columns].values
                 test_VS1 = test_data.iloc[:, columns].values
-            if self.method == 'logreg':
+            if self.classifier == 'logreg':
                 model = LogisticRegression(penalty='none', max_iter=8000,
                                            solver="saga", 
                                            random_state=self.random_state).\
@@ -1283,7 +1294,7 @@ class RENT_Classification(RENT_Base):
         elif self.scale == False:
             train_VS2 = self.data.iloc[:,self.sel_var].values
             test_VS2 = test_data.iloc[:, self.sel_var].values
-        if self.method == 'logreg':
+        if self.classifier == 'logreg':
             model = LogisticRegression(penalty='none', max_iter=8000,
                                        solver="saga", 
                                        random_state=self.random_state ).\

@@ -11,13 +11,24 @@ More details are provided here: [RENT - Repeated Elastic Net Technique for Featu
 
 Requirements
 ------------
+Make sure that Python 3.5 or higher is installed. A convenient way to install Python and many useful packages for scientific computing is to use the `Anaconda distribution`_.
 
-some info here
+.. _Anaconda distribution: https://www.anaconda.com/products/individual
+
+    - numpy >= 1.11.3
+    - pandas >= 1.0.5
+    - scikit-learn >= 0.22
+    - scipy >= 1.5.0
+    - hoggorm >= 0.13.3
+    - hoggormplot >= 0.13.2
+    - matplotlib >= 3.2.2
+    - seaborn >= 0.10
+
 
 
 Documentation
 -------------
-The following Jupyter notebooks provides a [classification example](https://github.com/NMBU-Data-Science/RENT/blob/master/src/RENT/Classification_example.ipynb) and a [regression example](https://github.com/NMBU-Data-Science/RENT/blob/master/src/RENT/Regression_example.ipynb), illustrating the RENT workflow.
+The following Jupyter notebooks provides a `classification example <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Classification_example.ipynb>`_ and a `regression example <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Regression_example.ipynb>`_, illustrating the RENT workflow.
 
 
 RENT repository on GitHub

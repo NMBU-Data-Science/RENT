@@ -12,3 +12,4 @@ pytest-cov
 pytest-randomly
 
 sphinx_rtd_theme
+sphinxbootstrap4theme

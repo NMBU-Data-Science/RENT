@@ -1120,20 +1120,21 @@ class RENT_Classification(RENT_Base):
                                   upper=1, kde=False, norm_hist=False):
         """
         Histograms of predicted probabilities.
-
+        
         PARAMETERS
         ----------
         object_id : <list of int or str>
             Samples/Objects whos histograms shall be plotted.
         binning : <str>
             Histogram binning type.
-            Source:https://www.answerminer.com/blog/binning-guide-ideal-histogram (01.02.2021)
+            Source: https://www.answerminer.com/blog/binning-guide-ideal-histogram (01.02.2021)
                 - ``binning='auto'`` : automatic binning (default)
                 - ``binning='rice'`` : rice binning formula 
                     .. math::
                         2\cdot\sqrt[3]{I_{train}}
                 - ``binning='sturges'``: sturges binning formula
-                    .. math:: ceil(\log_2 I_{train}) +1
+                    .. math:: 
+                        ceil(\log_2 I_{train}) +1      
         lower : <float>
             Lower bound of the x-axis. Default ``lower=0``.
         upper : <float>
@@ -1143,12 +1144,12 @@ class RENT_Classification(RENT_Base):
             Default: ``kde=False``.
         norm_hist : <boolean>
             Normalize the histogram, from `seaborn distplot`.
-            Default: ``norm_hist=False``.
+            Default: ``norm_hist=False``.              
         """
+        
         if not hasattr(self, '_best_C'):
             sys.exit('Run train() first!')
-        # different binning schemata
-        # https://www.answerminer.com/blog/binning-guide-ideal-histogram
+            
         target_objects = pd.DataFrame(self.target)
         target_objects.index = self.pred_proba_dict[self._best_C, \
                               self._best_l1_ratio].index
@@ -1885,13 +1886,14 @@ class RENT_Regression(RENT_Base):
             Samples/Objects whos histograms shall be plotted.
         binning : <str>
             Histogram binning type.
-            Source:https://www.answerminer.com/blog/binning-guide-ideal-histogram (01.02.2021)
+            Source: https://www.answerminer.com/blog/binning-guide-ideal-histogram (01.02.2021)
                 - ``binning='auto'`` : automatic binning (default)
                 - ``binning='rice'`` : rice binning formula 
                     .. math::
                         2\cdot\sqrt[3]{I_{train}}
                 - ``binning='sturges'``: sturges binning formula
-                    .. math:: ceil(\log_2 I_{train}) +1
+                    .. math:: 
+                        ceil(\log_2 I_{train}) +1
         lower : <float>
             Lower bound of the x-axis. Default ``lower=0``.
         upper : <float>

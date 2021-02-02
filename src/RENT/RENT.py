@@ -1124,17 +1124,7 @@ class RENT_Classification(RENT_Base):
         PARAMETERS
         ----------
         object_id : <list of int or str>
-            Samples/Objects whos histograms shall be plotted.
-        binning : <str>
-            Histogram binning type.
-            Source: https://www.answerminer.com/blog/binning-guide-ideal-histogram (01.02.2021)
-                - ``binning='auto'`` : automatic binning (default)
-                - ``binning='rice'`` : rice binning formula 
-                    .. math::
-                        2\cdot\sqrt[3]{I_{train}}
-                - ``binning='sturges'``: sturges binning formula
-                    .. math:: 
-                        ceil(\log_2 I_{train}) +1      
+            Samples/Objects whos histograms shall be plotted.     
         lower : <float>
             Lower bound of the x-axis. Default ``lower=0``.
         upper : <float>
@@ -1884,16 +1874,6 @@ class RENT_Regression(RENT_Base):
         ----------
         object_id : <list of int or str>
             Samples/Objects whos histograms shall be plotted.
-        binning : <str>
-            Histogram binning type.
-            Source: https://www.answerminer.com/blog/binning-guide-ideal-histogram (01.02.2021)
-                - ``binning='auto'`` : automatic binning (default)
-                - ``binning='rice'`` : rice binning formula 
-                    .. math::
-                        2\cdot\sqrt[3]{I_{train}}
-                - ``binning='sturges'``: sturges binning formula
-                    .. math:: 
-                        ceil(\log_2 I_{train}) +1
         lower : <float>
             Lower bound of the x-axis. Default ``lower=0``.
         upper : <float>

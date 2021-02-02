@@ -1,7 +1,7 @@
 RENT for regression
 ===================
 
-Some info here.
+Info to come. 
 
 .. autoclass:: RENT.RENT.RENT_Regression
    :members:

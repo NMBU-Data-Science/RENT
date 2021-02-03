@@ -116,10 +116,11 @@ class RENT_Base(ABC):
         """
         Summary statistic of the selection criteria tau_1, tau_2 and tau_3
         for each feature.
+        
         RETURNS
         -------
         <pandas dataframe>
-            Matrix where rows represent criteria and columns represent features.
+            Matrix where rows represent selection criteria and columns represent features.
         """
         if not hasattr(self, 'summary_df'):
             sys.exit('Run selectFeatures() first!')
@@ -127,7 +128,7 @@ class RENT_Base(ABC):
 
     def plot_selection_frequency(self):
         """
-        Plots tau_1 for each feature.
+        Plots tau_1 value for each feature.
         """
         if not hasattr(self, '_perc'):
             sys.exit('Run selectFeatures() first!')
@@ -156,7 +157,7 @@ class RENT_Base(ABC):
         RETURNS
         -------
         <pandas dataframe>
-            Weights matrix.
+            Weight matrix.
         """
         if not hasattr(self, 'weight_dict'):
             sys.exit('Run train() first!')
@@ -411,7 +412,7 @@ class RENT_Base(ABC):
     def get_cv_matrices(self):
         """
         Three pandas data frames showing cross-validated result for all combinations
-        of ``C`` and ``l1_ratio`` . Only applicable if ´´autoEnetParSel=True``.
+        of ``C`` and ``l1_ratio`` . Only applicable if ``autoEnetParSel=True``.
 
         RETURNS
         -------
@@ -446,8 +447,10 @@ class RENT_Base(ABC):
         
         PARAMETERS
         ----------
-        C : C regularization parameter.
-        l1 : l1 ratio.
+        <float>
+            C regularization parameter.
+        <float>
+            l1 ratio with value in [0,1]. 
         """
         
         if (C not in self.C) | (l1 not in self.l1_ratios):
@@ -558,7 +561,7 @@ class RENT_Classification(RENT_Base):
 
     RETURNS
     ------
-    class
+    <class>
         A class that contains the RENT-Regression model.
     """
 
@@ -704,7 +707,7 @@ class RENT_Classification(RENT_Base):
         """
         Parallel computation of ``K`` * ``len(C)`` * ``len(l1_ratios)`` models.
 
-        INPUT
+        PARAMETERS
         -----
         ``K`` : range of train-test splits
         """
@@ -930,8 +933,8 @@ class RENT_Classification(RENT_Base):
         PARAMETERS
         ----------
         C: <list of int or float values>
-        List holding regularisation parameters for `K` models. The lower, the
-        stronger the regularization is.
+            List holding regularisation parameters for `K` models. The lower, the
+            stronger the regularization is.
 
         l1_ratios: <list of int or float values>
             List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
@@ -946,8 +949,9 @@ class RENT_Classification(RENT_Base):
 
         RETURNS
         -------
-        A tuple. First entry: suggested `C` parameter.
-                 Second entry: suggested `l1 ratio`.
+        <tuple>
+            - First entry: suggested `C` parameter.
+            - Second entry: suggested `l1 ratio`.
 
         """
 
@@ -1056,6 +1060,7 @@ class RENT_Classification(RENT_Base):
         RETURNS
         -------
         <pandas dataframe>
+        Data matrix. Rows represent objects, columns represent generated variables.
 
         """
         if not hasattr(self, '_best_C'):
@@ -1098,6 +1103,8 @@ class RENT_Classification(RENT_Base):
         RETURNS
         -------
         <pandas dataframe>
+        Matrix, where rows represent objects and columns represent logistic regression 
+            probability outputs (probability of belonging to class 1).
 
         """
 
@@ -1208,7 +1215,7 @@ class RENT_Classification(RENT_Base):
                 - ``scoring='mcc'`` : Matthews Correlation Coefficient
 
         alpha: <float>
-            Significance level for the `t`-test.
+            Significance level for the `t`-test. Default ``alpha=0.05``.
         """
         if not hasattr(self, 'sel_var'):
             sys.exit('Run selectFeatures() first!')
@@ -1550,8 +1557,9 @@ class RENT_Regression(RENT_Base):
 
         RETURNS
         -------
-        A tuple. First entry: suggested `C` parameter.
-                 Second entry: suggested `l1 ratio`.
+        <tuple> 
+        First entry: suggested `C` parameter.
+        Second entry: suggested `l1 ratio`.
 
         """
         skf = KFold(n_splits=n_splits, random_state=self.random_state, shuffle=True)
@@ -1654,7 +1662,7 @@ class RENT_Regression(RENT_Base):
         """
         Parallel computation of ``K`` * ``len(C)`` * ``len(l1_ratios)`` models.
 
-        INPUT
+        PARAMETERS
         -----
         ``K`` : range of train-test splits
         """
@@ -1858,7 +1866,8 @@ class RENT_Regression(RENT_Base):
 
         Returns
         -------
-        pandas dataframe
+        <pandas dataframe>
+        Matrix. Rows represent objects, columns represent genrated variables.
 
         """
         if not hasattr(self, '_histogram_data'):
@@ -1937,7 +1946,7 @@ class RENT_Regression(RENT_Base):
         num_permutations: <int>
             Number of independent test_labels permutations for VS2, more information given in the paper.
         alpha: <float>
-            Significance level for the `t`-test.
+            Significance level for the `t`-test. Default ``alpha=0.05``.
         """
         if not hasattr(self, 'sel_var'):
             sys.exit('Run selectFeatures() first!')

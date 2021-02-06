@@ -13,12 +13,3 @@ pytest-randomly
 
 sphinxbootstrap4theme
 
-
-numpy
-pandas
-scikit-learn
-scipy
-hoggorm
-hoggormplot
-matplotlib
-seaborn

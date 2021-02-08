@@ -5,6 +5,7 @@ Welcome to the RENT documentation
    :maxdepth: 2
    :caption: Content
 
+   readme
    quickstart
    baseclass
    binary_classification

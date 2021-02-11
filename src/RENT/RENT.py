@@ -237,6 +237,11 @@ class RENT_Base(ABC):
             Plots from hoggormplot package.
         hoggorm_plots : <list>
             Which plots from hoggormplot shall be plotted.
+                - 1: scores plot
+                - 2: loadings plot
+                - 3: correlation loadings plot
+                - 4: biplot
+                - 5: explained variance plot
         sel_vars : <boolean>
             Only use the features selected with RENT for PCA. The default is True.
 

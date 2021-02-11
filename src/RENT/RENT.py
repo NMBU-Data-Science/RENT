@@ -209,8 +209,8 @@ class RENT_Base(ABC):
         plt.title("Analysis of ensemble models")
     
     def plot_object_PCA(self, cl=0, comp1=1, comp2=2, 
-                        problem='class', hoggorm = True, 
-                        hoggorm_plots = [1,2,3,4,6], sel_vars=True):
+                        problem='class', hoggorm=True, 
+                        hoggorm_plots=[1,2,3,4,6], sel_vars=True):
         """
         PCA analysis. Plots scores, Loadings, Correlation Loadings, Biplot, 
         Explained variance plot

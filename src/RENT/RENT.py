@@ -194,7 +194,7 @@ class RENT_Base(ABC):
         """
         Lineplot of prediction score and % of weights set to 0 over ```K`` models.
         """
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(10, 7))
         num_zeroes = np.sum(1 - self.get_weight_distributions(binary=True), \
                             axis=1) / len(self.feat_names)
         
@@ -209,7 +209,8 @@ class RENT_Base(ABC):
         plt.title("Analysis of ensemble models")
     
     def plot_object_PCA(self, cl=0, comp1=1, comp2=2, 
-                        problem='class', sel_vars=True):
+                        problem='class', hoggorm = True, 
+                        hoggorm_plots = [1,2,3,4,6], sel_vars=True):
         """
         PCA analysis. Plots scores, Loadings, Correlation Loadings, Biplot, 
         Explained variance plot
@@ -232,6 +233,10 @@ class RENT_Base(ABC):
             Classification or regression problem. The default is 'class'.
                 - ``problem='class'``: Classification problem. Can be used with all possible ``cl`` inputs.
                 - ``problem='regression'``: Regression problem. Can only be used with ``cl='continuous'``.
+        hoggorm : <boolean>
+            Plots from hoggormplot package.
+        hoggorm_plots : <list>
+            Which plots from hoggormplot shall be plotted.
         sel_vars : <boolean>
             Only use the features selected with RENT for PCA. The default is True.
 
@@ -444,12 +449,13 @@ class RENT_Base(ABC):
         plt.xticks(fontsize=10)
         plt.yticks(fontsize=10)
         objnames = list(data.index.astype('str'))
-        if cl != 'continuous':
-            hopl.plot(pca_model, plots=[1,2,3,4,6], comp = [comp1,comp2],
-                      objNames=objnames, XvarNames=list(data.columns[:-2]))
-        else:
-            hopl.plot(pca_model, plots=[1,2,3,4,6], comp = [comp1,comp2],
-                      objNames=objnames, XvarNames=list(data.columns[:-1]))
+        if hoggorm == True:
+            if cl != 'continuous':
+                hopl.plot(pca_model, plots=hoggorm_plots, comp = [comp1,comp2],
+                        objNames=objnames, XvarNames=list(data.columns[:-2]))
+            else:
+                hopl.plot(pca_model, plots=hoggorm_plots, comp = [comp1,comp2],
+                        objNames=objnames, XvarNames=list(data.columns[:-1]))
         
 
 

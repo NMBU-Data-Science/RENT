@@ -175,11 +175,71 @@ class RENT_Base(ABC):
         else:
             return(weights_df)
 
+    def get_scores_list(self):
+        """
+        Prediction scores over the ``K`` models.
 
+        RETURNS
+        -------
+        <list>
+            Scores list.
+        """
+        scores_list = []
+        for k in self.score_dict.keys():
+            if k[0] == self._best_C and k[1] == self._best_l1_ratio:
+                scores_list.append(self.score_dict[k])
+        return scores_list
+    
+    def lineplot(self):
+        """
+        Lineplot of prediction score and % of weights set to 0 over ```K`` models.
+        """
+        fig, ax = plt.subplots()
+        num_zeroes = np.sum(1 - self.get_weight_distributions(binary=True), \
+                            axis=1) / len(self.feat_names)
+        
+        scores = self.get_scores_list()
+        data = pd.DataFrame({"num_zeroes" : num_zeroes, "scores" : scores})
+        
+        plt.plot(data.num_zeroes.values, linestyle='--', marker='o', \
+                 label="% zero weights")
+        plt.plot(data.scores.values, linestyle='--', marker='o', label="score")
+        plt.legend()
+        ax.set_xlabel('ensemble models')
+        plt.title("Analysis of ensemble models")
     
     def plot_object_PCA(self, cl=0, comp1=1, comp2=2, 
                         problem='class', sel_vars=True):
+        """
+        PCA analysis. Plots scores, Loadings, Correlation Loadings, Biplot, 
+        Explained variance plot
 
+        Parameters
+        ----------
+        cl : <int>, <str>
+            Run PCA on cl. The default is ``0``.
+                - ``cl=0``: Class 0.
+                - ``cl=1``: Class 1.
+                - ``cl='both'``: All objects (incorrect predictions coloring).
+                - ``cl='continuous'``: All objects (gradient coloring).
+        comp1 : <int>
+            First PCA component to plot. The default is 1.
+            
+        comp2 : <int>
+            Second PCA component to plot. The default is 2.
+            
+        problem : <str>
+            Classification or regression problem. The default is 'class'.
+                - ``problem='class'``: Classification problem. Can be used with all possible ``cl`` inputs.
+                - ``problem='regression'``: Regression problem. Can only be used with ``cl='continuous'``.
+        sel_vars : <boolean>
+            Only use the features selected with RENT for PCA. The default is True.
+
+        Returns
+        -------
+        None.
+
+        """
         if cl not in [0, 1, 'both', 'continuous']:
             sys.exit(" 'cl' must be either 0, 1, 'both' or 'continuous'")
         if problem not in ['class', 'regression']:

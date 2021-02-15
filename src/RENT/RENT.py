@@ -672,6 +672,7 @@ class RENT_Classification(RENT_Base):
             print('target dimension', np.shape(target))
             print('regularization parameters C:', C)
             print('elastic net l1_ratios:', l1_ratios)
+            print('poly:', poly)
             print('number of models in ensemble:', K)
             print('scale:', scale)
             print('classifier:', classifier)
@@ -690,6 +691,7 @@ class RENT_Classification(RENT_Base):
         self.verbose = verbose
         self.autoEnetParSel = autoEnetParSel
         self.random_state = random_state
+        self.poly = poly
 
 
         # Check if data is dataframe and add index information
@@ -716,10 +718,10 @@ class RENT_Classification(RENT_Base):
 
 
         # Extend data if poly was set to 'ON' or 'ON_only_interactions'
-        if poly == 'ON':
-            polynom = PolynomialFeatures(interaction_only=False, \
+        if self.poly == 'ON':
+            self.polynom = PolynomialFeatures(interaction_only=False, \
                                          include_bias=False)
-            self.data = polynom.fit_transform(data)
+            self.data = self.polynom.fit_transform(data)
             polynom_comb = list(combinations_with_replacement(self.feat_names,\
                                                               2))
             polynom_feat_names = []
@@ -738,10 +740,10 @@ class RENT_Classification(RENT_Base):
             self.data.index = self.indices
             self.data.columns = self.feat_names
 
-        elif poly == 'ON_only_interactions':
-            polynom = PolynomialFeatures(interaction_only=True,\
+        elif self.poly == 'ON_only_interactions':
+            self.polynom = PolynomialFeatures(interaction_only=True,\
                                          include_bias=False)
-            self.data = polynom.fit_transform(data)
+            self.data = self.polynom.fit_transform(data)
 
             polynom_comb = list(combinations(self.feat_names, 2))
             polynom_feat_names = []
@@ -758,7 +760,7 @@ class RENT_Classification(RENT_Base):
             self.data.index = self.indices
             self.data.columns = self.feat_names
 
-        elif poly == 'OFF':
+        elif self.poly == 'OFF':
             self.data = pd.DataFrame(data)
             self.data.index=self.indices
             self.data.columns = self.feat_names
@@ -1264,6 +1266,8 @@ class RENT_Classification(RENT_Base):
         Two validation studies based on a statistical `t`-test. The null-hypotheses claims that
             -RENT is not better than random feature selection.
             -RENT performs equally on the real and a randomly permutated target.
+            
+        If ``poly='ON'`` or ``poly='ON_only_interactions'`` in the constructor, the test data is automatically transformed.
 
         PARAMETERS
         ----------
@@ -1291,6 +1295,10 @@ class RENT_Classification(RENT_Base):
         if not hasattr(self, 'sel_var'):
             sys.exit('Run selectFeatures() first!')
 
+        if self.poly != 'OFF':
+            test_data = pd.DataFrame(self.polynom.fit_transform(test_data))
+            test_data.columns = self.data.columns
+            self.test_data = test_data
         # RENT prediction
         if self.scale == True:
             sc = StandardScaler()
@@ -2003,6 +2011,8 @@ class RENT_Regression(RENT_Base):
         Two validation studies based on a statistical `t`-test. The null-hypotheses claims that
             -RENT is not better than random feature selection.
             -RENT performs equally on the real and a randomly permutated target.
+            
+        If ``poly='ON'`` or ``poly='ON_only_interactions'`` in the constructor, the test data is automatically transformed.
 
         PARAMETERS
         ----------
@@ -2021,6 +2031,12 @@ class RENT_Regression(RENT_Base):
         """
         if not hasattr(self, 'sel_var'):
             sys.exit('Run selectFeatures() first!')
+            
+        if self.poly != 'OFF':
+            test_data = pd.DataFrame(self.polynom.fit_transform(test_data))
+            test_data.columns = self.data.columns
+            self.test_data = test_data
+            
         if self.scale == True:
             sc = StandardScaler()
             train_RENT = sc.fit_transform(self.data.iloc[:,self.sel_var])

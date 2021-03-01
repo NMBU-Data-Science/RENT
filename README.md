@@ -22,11 +22,13 @@ pandas >= 1.0.5
 scikit-learn >= 0.22   
 scipy >= 1.5.0  
 hoggorm >= 0.13.3
+hoggormplot >= 0.13.2
+matplotlib >= 3.2.2
+seaborn >= 0.10
+
 
 
 # Documentation
 
-A webhook to ReadTheDocs will be established soon. Until then, please see the docstrings inside the code. There you will find information on input parameters, etc.
-
-Documentation at [ReadTheDocs](https://rent.readthedocs.io/en/latest/)
+A webhook to [ReadTheDocs](https://rent.readthedocs.io/en/latest/) is available. The documentation contains detailed explanation of methods and their inputs.
 

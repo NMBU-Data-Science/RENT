@@ -7,11 +7,11 @@ a unique and randomly selected subset from the full training data. From these mo
 feature that contain rich information on the stability of feature selection and from which several adjustable classification criteria may be
 defined.
 
-More details are provided here: [RENT - Repeated Elastic Net Technique for Feature Selection](https://arxiv.org/abs/2009.12780)
+More details are provided here: [RENT - Repeated Elastic Net Technique for Feature Selection](https://arxiv.org/abs/2009.12780v2)
 
 # Example
 
-The following Jupyter notebook provides a [classification example](https://github.com/NMBU-Data-Science/RENT/blob/master/src/RENT/Classification_example.ipynb) of how to use RENT.
+We provide an example Jupyter-notebook for both [classification](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Classification_example.ipynb) and [regression](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Regression_example.ipynb) on how to use RENT.
 
 More example Jupyter notebooks are to come soon.
 

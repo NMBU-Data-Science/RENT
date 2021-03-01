@@ -110,6 +110,9 @@ class RENT_Base(ABC):
                 (self.summary_df.iloc[1, :] >= tau_2_cutoff) &
                 (self.summary_df.iloc[2, :] >= tau_3_cutoff\
                             ))[0]
+        
+        if len(self.sel_var) == 0:
+            sys.exit("Thresholds are too restrictive - no features selected!")
         return self.sel_var
 
     def summary_criteria(self):
@@ -214,7 +217,6 @@ class RENT_Base(ABC):
         """
         PCA analysis. Plots scores, Loadings, Correlation Loadings, Biplot, 
         Explained variance plot
-
         Parameters
         ----------
         cl : <int>, <str>
@@ -244,11 +246,9 @@ class RENT_Base(ABC):
                 - 5: explained variance plot
         sel_vars : <boolean>
             Only use the features selected with RENT for PCA. The default is True.
-
         Returns
         -------
         None.
-
         """
         if cl not in [0, 1, 'both', 'continuous']:
             sys.exit(" 'cl' must be either 0, 1, 'both' or 'continuous'")
@@ -448,9 +448,9 @@ class RENT_Base(ABC):
                         cmap='YlOrRd')
             cbar = plt.colorbar()
             if problem == "class":
-                cbar.set_label('average object prediction')
+                cbar.set_label('average object prediction', fontsize=10)
             else:
-                cbar.set_label('average absolute error')
+                cbar.set_label('average absolute error', fontsize=10)
         plt.xticks(fontsize=10)
         plt.yticks(fontsize=10)
         objnames = list(data.index.astype('str'))
@@ -669,7 +669,7 @@ class RENT_Classification(RENT_Base):
         # Print parameters for checking if verbose = True
         if verbose == 1:
             print('data dimension:', np.shape(data), ' data type:', type(data))
-            print('target dimension', np.shape(target))
+            print('target dimension:', np.shape(target))
             print('regularization parameters C:', C)
             print('elastic net l1_ratios:', l1_ratios)
             print('poly:', poly)
@@ -1225,7 +1225,7 @@ class RENT_Classification(RENT_Base):
                               self._best_l1_ratio].index
         self.t = target_objects
         for obj in object_id:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(15,12))
             data = self.pred_proba_dict[self._best_C, \
                               self._best_l1_ratio].loc[obj,:].dropna()
 
@@ -1419,7 +1419,7 @@ class RENT_Classification(RENT_Base):
         plt.ylabel('density', fontsize=14)
         plt.xticks(fontsize=12)
         plt.yticks(fontsize=12)
-        plt.title('validation Study', fontsize=18)
+        plt.title('Validation study', fontsize=18)
 
 class RENT_Regression(RENT_Base):
     """
@@ -1513,9 +1513,10 @@ class RENT_Regression(RENT_Base):
         # Print parameters for checking
         if verbose == 1:
             print('data dimension:', np.shape(data), ' data type:', type(data))
-            print('target dimension', np.shape(target))
+            print('target dimension:', np.shape(target))
             print('regularization parameters C:', C)
             print('elastic net l1_ratios:', l1_ratios)
+            print('poly:', poly)
             print('number of models in ensemble:', K)
             print('scale:', scale)
             print('random state:', random_state)
@@ -1526,6 +1527,7 @@ class RENT_Regression(RENT_Base):
         self.target = target
         self.K = K
         self.feat_names = feat_names
+        self.poly = poly
         self.scale = scale
         self.testsize_range = testsize_range
         self.verbose = verbose
@@ -1549,7 +1551,7 @@ class RENT_Regression(RENT_Base):
 
 
         # Extend data if poly was set to 'ON' or 'ON_only_interactions'
-        if poly == 'ON':
+        if self.poly == 'ON':
             polynom = PolynomialFeatures(interaction_only=False, \
                                          include_bias=False)
             self.data = polynom.fit_transform(data)
@@ -1571,7 +1573,7 @@ class RENT_Regression(RENT_Base):
             self.data.index = self.indices
             self.data.columns = self.feat_names
 
-        elif poly == 'ON_only_interactions':
+        elif self.poly == 'ON_only_interactions':
             polynom = PolynomialFeatures(interaction_only=True,\
                                          include_bias=False)
             self.data = polynom.fit_transform(data)
@@ -1591,7 +1593,7 @@ class RENT_Regression(RENT_Base):
             self.data.index = self.indices
             self.data.columns = self.feat_names
 
-        elif poly == 'OFF':
+        elif self.poly == 'OFF':
             self.data = pd.DataFrame(data)
             self.data.index=self.indices
             self.data.columns = self.feat_names
@@ -2114,4 +2116,4 @@ class RENT_Regression(RENT_Base):
         plt.ylabel('density', fontsize=14)
         plt.xticks(fontsize=12)
         plt.yticks(fontsize=12)
-        plt.title('validation Study', fontsize=18)
+        plt.title('Validation study', fontsize=18)

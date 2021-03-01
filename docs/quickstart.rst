@@ -42,3 +42,102 @@ Testing
 -------
 
 To be implemented.
+
+
+Classification Example
+----------------------
+The following python example illustrates RENT on the Wisconsin breast cancer (classification) dataset, available on scikit-learn.
+First, we load and prepare the data. Then we initialize a RENT classification model, train it and select features. A
+
+.. code-block:: python
+   
+    import pandas as pd
+    from RENT import RENT
+    from sklearn.datasets import load_breast_cancer
+    from sklearn.model_selection import train_test_split
+
+    # Load dataset 
+    wisconsin = load_breast_cancer()
+    data = pd.DataFrame(wisconsin.data)
+    data.columns = wisconsin.feature_names
+    target = wisconsin.target
+
+    # We split the dataset into a separate train and (unseen) test dataset. 
+    # Thus, we can evaluate a model build on the selected features, afterwards (see Jupyter notebook for classification).
+    train_data, test_data, train_labels, test_labels = train_test_split(data, target, random_state=0, shuffle=True)
+
+    # Build RENT model
+    # Define a range of regularisation parameters C for elastic net. A minimum of at least one value is required.
+    my_C_params = [0.1, 1, 10]
+
+    # Define a reange of l1-ratios for elastic net.  A minimum of at least one value is required.
+    my_l1_ratios = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+
+    # Define setting for RENT
+    model = RENT.RENT_Classification(data=train_data, 
+                                        target=train_labels, 
+                                        feat_names=train_data.columns, 
+                                        C=my_C_params, 
+                                        l1_ratios=my_l1_ratios,
+                                        autoEnetParSel=True,
+                                        poly='OFF',
+                                        testsize_range=(0.25,0.25),
+                                        scoring='mcc',
+                                        classifier='logreg',
+                                        K=100,
+                                        random_state = 0,
+                                        verbose=1)
+    
+    # After having initialized the RENT model, we train it. 
+    model.train()
+
+    # Actual feature selection step
+    model.selectFeatures(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
+
+
+Regression Example
+----------------------
+The following python example illustrates RENT on a regression dataset, generated via the ``make_regression()`` function, offered in
+scikit-learn.
+First, we load and prepare the data. Then we initialize a RENT classification model, train it and select features.
+
+.. code-block:: python
+   
+    import pandas as pd
+    from RENT import RENT
+    from sklearn.datasets import make_regression
+    from sklearn.model_selection import train_test_split
+
+    # Build dataset
+    data = make_regression(n_samples=250, n_features=1000, n_informative=20, random_state=0, shuffle=False)
+    my_data = pd.DataFrame(data[0])
+    my_target = data[1]
+    my_feat_names = ['f{0}'.format(x+1) for x in range(len(my_data.columns))]
+
+    # We split the dataset into a separate train and (unseen) test dataset. 
+    # Thus, we can evaluate a model build on the selected features, afterwards (see Jupyter notebook for regression).
+    train_data, test_data, train_labels, test_labels = train_test_split(my_data, my_target, test_size=0.3, random_state=0)
+
+    # Build RENT model
+    # Define a range of regularisation parameters C for elastic net. A minimum of at least one value is required.
+    my_C_params = [0.1, 1, 10]
+    # Define a reange of l1-ratios for elastic net.  A minimum of at least one value is required.
+    my_l1_ratios = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+
+    model = RENT.RENT_Regression(data=train_data, 
+                                    target=train_labels, 
+                                    feat_names=train_data.columns, 
+                                    C= my_C_params, 
+                                    l1_ratios=my_l1_ratios,
+                                    autoEnetParSel=True,
+                                    poly='OFF',
+                                    testsize_range=(0.25,0.25),
+                                    K=100,
+                                    random_state=0,
+                                    verbose=0)
+                                    
+    # After having initialized the RENT model, we train it. 
+    model.train()
+
+    # Actual feature selection step
+    model.selectFeatures(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)

@@ -9,13 +9,15 @@ defined.
 
 More details are provided here: [RENT - Repeated Elastic Net Technique for Feature Selection](https://arxiv.org/abs/2009.12780v2)
 
-# Example
+Example
+-------
 
 We provide an example Jupyter-notebook for both [classification](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Classification_example.ipynb) and [regression](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Regression_example.ipynb) on how to use RENT.
 
 
 
-# Requirements
+Requirements
+------------
 
 numpy >= 1.11.3   
 pandas >= 1.0.5   
@@ -28,7 +30,8 @@ seaborn >= 0.10
 
 
 
-# Documentation
+Documentation
+-------------
 
 A webhook to [ReadTheDocs](https://rent.readthedocs.io/en/latest/) is available. The documentation contains detailed explanation of methods and their inputs.
 

@@ -36,11 +36,6 @@ class RENT_Base(ABC):
     """
 
     @abstractmethod
-    def validation_study(self, test_data, test_labels, num_drawings,
-                          num_permutations):
-        pass
-
-    @abstractmethod
     def run_parallel(self, K):
         pass
 
@@ -55,6 +50,128 @@ class RENT_Base(ABC):
     @abstractmethod
     def summary_objects(self):
         pass
+
+
+    def train(self):
+        """
+        This method trains ``K`` * ``len(C)`` * ``len(l1_ratios)`` models in total. The number
+        of models using the same hyperparamters is ``K``.
+        For each model elastic net regularisation is applied for feature selection. Internally, train
+        calls the ``run_parallel()`` function for classification or regression, respectively.
+        """
+        #check if this is needed and does what it should (probably doesn't work because of parallelization)
+        np.random.seed(0)
+        self.random_testsizes = np.random.uniform(self.testsize_range[0],
+                                                  self.testsize_range[1],
+                                                  self.K)
+
+        # Initiate a dictionary holding coefficients for each model. Keys are
+        # (C, K, num_w_init)
+        self.weight_dict = {}
+
+        # Initiate a dictionary holding computed performance metric for each
+        self.score_dict = {}
+
+
+        # Collect all coefs in a list that will be converted to a numpy array
+        self.weight_list = []
+
+        # Collect all coefs in a list that will be converted to a numpy array
+        self.score_list = []
+
+        if self.type == "regression":
+            # Initialize a dictionary to predict incorrect labels for regression
+            self.predictions_abs_errors = {}
+        elif self.type == "classification":
+            # Initialize dictionaries for classification
+            self.predictions_dict = {}
+            self.probas = {}
+            self.pred_proba_dict = {}
+
+
+
+        # stop runtime
+        start = time.time()
+        # Call parallelization function
+        Parallel(n_jobs=-1, verbose=0, backend='threading')(
+             map(delayed(self.run_parallel), range(self.K)))
+        ende = time.time()
+        self._runtime = ende-start
+
+        if self.type == "classification":
+            # Build a dictionary with the prediction probabilities
+            for C in self.C:
+                for l1 in self.l1_ratios:
+                    count =  0
+                    vec = pd.DataFrame(np.nan, index= self.indices, \
+                                    columns = ['remove'])
+                    for k in self.probas.keys():
+
+                        if k[0] == C and k[1] == l1:
+                            vec.loc[self.probas[k].index,count] = \
+                            self.probas[k].iloc[:, 1].values
+                            count += 1
+
+                    vec = vec.iloc[:, 1:]
+
+                    self.pred_proba_dict[(C, l1)] = vec
+
+        # find best parameter setting and matrices
+        result_list=[]
+        for l1 in self.l1_ratios:
+            for C in self.C:
+                spec_result_list = []
+                for k in self.score_dict.keys():
+                    if k[0] == C and k[1] ==l1:
+                        spec_result_list.append(self.score_dict[k])
+                result_list.append(spec_result_list)
+
+        means=[]
+        for r in range(len(result_list)):
+            means.append(np.mean(result_list[r]))
+
+        self._scores_df = pd.DataFrame(np.array(means).reshape(\
+                                  len(self.l1_ratios), \
+                                  len(self.C)), \
+        index= self.l1_ratios, columns = self.C)
+
+        self._zeroes_df = pd.DataFrame(index = self.l1_ratios,\
+                                   columns=self.C)
+        for l1 in self.l1_ratios:
+            for C in self.C:
+                count = 0
+                for K in range(self.K):
+                    nz = \
+                    len(np.where(pd.DataFrame(self.weight_dict[(C, l1, K)\
+])==0)[0])
+                    count = count + nz / len(self.feat_names)
+                count = count / (self.K)
+                self._zeroes_df.loc[l1, C] = count
+
+        if len(self.C)>1 or len(self.l1_ratios)>1:
+            normed_scores = pd.DataFrame(self.min_max(self._scores_df.copy().values))
+            normed_zeroes = pd.DataFrame(self.min_max(self._zeroes_df.copy().values))
+            normed_zeroes = normed_zeroes.astype('float')
+
+            self._combination = 2 * ((normed_scores.copy().applymap(self.inv) + \
+                                        normed_zeroes.copy().applymap(
+                                            self.inv)).applymap(self.inv))
+        else:
+            self._combination = 2 * ((self._scores_df.copy().applymap(self.inv) + \
+                                 self._zeroes_df.copy().applymap(
+                                     self.inv)).applymap(self.inv))
+        self._combination.index = self._scores_df.index.copy()
+        self._combination.columns = self._scores_df.columns.copy()
+
+        self._scores_df.columns.name = 'Scores'
+        self._zeroes_df.columns.name = 'Zeroes'
+        self._combination.columns.name = 'Harmonic Mean'
+
+        best_row, best_col  = np.where(
+            self._combination == np.nanmax(self._combination.values))
+        self._best_l1_ratio = self._combination.index[np.nanmax(best_row)]
+        self._best_C = self._combination.columns[np.nanmin(best_col)]
+
 
     def selectFeatures(self, tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975):
         """
@@ -76,7 +193,6 @@ class RENT_Base(ABC):
         -------
         <numpy array>
             Array with selected features.
-
         """
         if not hasattr(self, '_best_C'):
             sys.exit('Run train() first!')
@@ -112,7 +228,7 @@ class RENT_Base(ABC):
                             ))[0]
         
         if len(self.sel_var) == 0:
-            sys.exit("Thresholds are too restrictive - no features selected!")
+            warnings.warn("Attention! Thresholds are too restrictive - no features selected!")
         return self.sel_var
 
     def summary_criteria(self):
@@ -211,12 +327,14 @@ class RENT_Base(ABC):
         ax.set_xlabel('ensemble models')
         plt.title("Analysis of ensemble models")
     
+
     def plot_object_PCA(self, cl=0, comp1=1, comp2=2, 
                         problem='class', hoggorm=True, 
                         hoggorm_plots=[1,2,3,4,6], sel_vars=True):
         """
         PCA analysis. Plots scores, Loadings, Correlation Loadings, Biplot, 
         Explained variance plot
+
         Parameters
         ----------
         cl : <int>, <str>
@@ -246,6 +364,7 @@ class RENT_Base(ABC):
                 - 5: explained variance plot
         sel_vars : <boolean>
             Only use the features selected with RENT for PCA. The default is True.
+            
         Returns
         -------
         None.
@@ -461,8 +580,192 @@ class RENT_Base(ABC):
             else:
                 hopl.plot(pca_model, plots=hoggorm_plots, comp = [comp1,comp2],
                         objNames=objnames, XvarNames=list(data.columns[:-1]))
-        
 
+
+    def validation_study(self, test_data, test_labels, num_drawings, num_permutations,
+                            metric='mcc', alpha=0.05):
+        """
+        Two validation studies based on a statistical `t`-test. The null-hypotheses claims that
+            -RENT is not better than random feature selection.
+            -RENT performs equally on the real and a randomly permutated target.
+            
+        If ``poly='ON'`` or ``poly='ON_only_interactions'`` in the constructor, the test data is automatically transformed.
+
+        PARAMETERS
+        ----------
+        test_data : <numpy array> or <pandas dataframe>
+            Dataset, used to evalute Logistic Models in the validation study.
+            Dimension according to the paper: I_test x N
+        test_lables: <numpy array> or <pandas dataframe>
+            Response variable of the dataset.
+            Dimension: I_train x 1 or I_train x 0 when an row-array is used.
+        num_drawings: <int>
+            Number of independent feature subset drawings for VS1, more information given in the paper.
+        num_permutations: <int>
+            Number of independent test_labels permutations for VS2, more information given in the paper.
+        metric: <str>
+            The metric to evaluate ``K`` models. Default: ``metric='mcc'``. Only relevant for classification tasks. For regression R2-score is used.
+                - ``scoring='accuracy'`` :  Accuracy
+                - ``scoring='f1'`` : F1-score
+                - ``scoring='precision'`` : Precision
+                - ``scoring='recall'``: Recall
+                - ``scoring='mcc'`` : Matthews Correlation Coefficient
+        alpha: <float>
+            Significance level for the `t`-test. Default ``alpha=0.05``.
+        """
+        if not hasattr(self, 'sel_var'):
+            sys.exit('Run selectFeatures() first!')
+
+        if self.poly != 'OFF':
+            test_data = pd.DataFrame(self.polynom.fit_transform(test_data))
+            test_data.columns = self.data.columns
+            self.test_data = test_data
+        # RENT prediction
+        if self.scale == True:
+            sc = StandardScaler()
+            train_RENT = sc.fit_transform(self.data.iloc[:, self.sel_var])
+            test_RENT = sc.transform(test_data.iloc[:, self.sel_var])
+        elif self.scale == False:
+            train_RENT = self.data.iloc[:, self.sel_var].values
+            test_RENT = test_data.iloc[:, self.sel_var].values
+        
+        if self.type == "classification":
+            if self.classifier == 'logreg':
+                    model = LogisticRegression(penalty='none', max_iter=8000,
+                                                solver="saga", \
+                                                random_state=self.random_state).\
+                        fit(train_RENT,self.target)
+            else:
+                print("something")
+
+            if metric == 'mcc':
+                    score = matthews_corrcoef(test_labels, model.predict(test_RENT))
+            elif metric == 'f1':
+                score = f1_score(test_labels, model.predict(test_RENT))
+            elif metric == 'acc':
+                score = accuracy_score(test_labels, model.predict(test_RENT))
+                
+        else:
+            model = LinearRegression().fit(train_RENT,self.target)
+            score = r2_score(test_labels, model.predict(test_RENT))
+
+        # VS1
+        VS1 = []
+        for K in range(num_drawings):
+            # Randomly select features (# features = # RENT features selected)
+            columns = np.random.RandomState(seed=K).choice(
+                range(0,len(self.data.columns)),
+                                    len(self.sel_var))
+            if self.scale == True:
+                sc = StandardScaler()
+                train_VS1 = sc.fit_transform(self.data.iloc[:, columns])
+                test_VS1 = sc.transform(test_data.iloc[:, columns])
+            elif self.scale == False:
+                train_VS1 = self.data.iloc[:, columns].values
+                test_VS1 = test_data.iloc[:, columns].values
+            
+            if self.type == "classification":
+                if self.classifier == 'logreg':
+                    model = LogisticRegression(penalty='none', max_iter=8000,
+                                                solver="saga", 
+                                                random_state=self.random_state).\
+                        fit(train_VS1,self.target)
+                else:
+                    print("something")
+                if metric == 'mcc':
+                    VS1.append(matthews_corrcoef(test_labels, \
+                                                        model.predict(test_VS1)))
+                elif metric == 'f1':
+                    VS1.append(f1_score(test_labels, \
+                                                        model.predict(test_VS1)))
+                elif metric == 'acc':
+                    VS1.append(accuracy_score(test_labels, \
+                                                        model.predict(test_VS1)))
+            else:
+                model = LinearRegression().fit(train_VS1, self.target)
+                VS1.append(r2_score(test_labels, model.predict(test_VS1)))
+                
+
+        heuristic_p_value_VS1 = sum(VS1 > score) / len(VS1)
+        T = (np.mean(VS1) - score) / (np.std(VS1,ddof=1) / np.sqrt(len(VS1)))
+        print("mean VS1", np.mean(VS1))
+        p_value_VS1 = t.cdf(T, len(VS1)-1)
+        print("VS1: p-value for average score from random feature drawing: ", p_value_VS1)
+        print("VS1: heuristic p-value (how many scores are higher than the RENT score): ",
+                heuristic_p_value_VS1)
+
+        if p_value_VS1 <= alpha:
+            print('With a significancelevel of ', alpha, ' H0 is rejected.')
+        else:
+            print('With a significancelevel of ', alpha, ' H0 is accepted.')
+        print(' ')
+        print('-----------------------------------------------------------')
+        print(' ')
+        
+        
+        # VS2
+        sc = StandardScaler()
+        test_data.columns = self.data.columns
+        VS2 = []
+        if self.scale == True:
+            train_VS2 = sc.fit_transform(self.data.iloc[:,self.sel_var])
+            test_VS2 = sc.transform(test_data.iloc[:, self.sel_var])
+        elif self.scale == False:
+            train_VS2 = self.data.iloc[:,self.sel_var].values
+            test_VS2 = test_data.iloc[:, self.sel_var].values
+        if self.type == "classification":
+            if self.classifier == 'logreg':
+                model = LogisticRegression(penalty='none', max_iter=8000,
+                                            solver="saga", 
+                                            random_state=self.random_state ).\
+                        fit(train_VS2, self.target)
+            else:
+                print("add model")
+
+            for K in range(num_permutations):
+                if metric == 'mcc':
+                    VS2.append(matthews_corrcoef(
+                            np.random.RandomState(seed=K).permutation(test_labels),\
+                            model.predict(test_VS2)))
+                elif metric == 'f1':
+                    VS2.append(f1_score(
+                            np.random.RandomState(seed=K).permutation(test_labels),\
+                            model.predict(test_VS2)))
+                elif metric == 'acc':
+                    VS2.append(accuracy_score(
+                            np.random.RandomState(seed=K).permutation(test_labels),\
+                            model.predict(test_VS2)))
+        else:
+            model = LinearRegression().fit(train_VS2,self.target)
+            for K in range(num_permutations):
+                VS2.append(r2_score(
+                np.random.RandomState(seed=K).permutation(test_labels),\
+                model.predict(test_VS2)))
+                
+
+
+        heuristic_p_value_VS2 = sum(VS2 > score) / len(VS2)
+        print("Mean VS2", np.mean(VS2))
+        T = (np.mean(VS2) - score) / (np.std(VS2,ddof=1) / np.sqrt(len(VS2)))
+        p_value_VS2 = t.cdf(T, len(VS2)-1)
+        print("VS2: p-value for score from permutation of test labels: ", p_value_VS2)
+        print("VS2: heuristic p-value (how many scores are higher than the RENT score): ", 
+                p_value_VS2)
+        if p_value_VS2 <= alpha:
+            print('With a significancelevel of ', alpha, ' H0 is rejected.')
+        else:
+            print('With a significancelevel of ', alpha, ' H0 is accepted.')
+
+        plt.figure(figsize=(15, 7))
+        sns.kdeplot(VS1, shade=True, color="b", label='VS1')
+        sns.kdeplot(VS2, shade=True, color="g", label='VS2')
+        plt.axvline(x=score, color='r', linestyle='--',
+                    label='RENT prediction score')
+        plt.legend(prop={'size': 12})
+        plt.ylabel('density', fontsize=14)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.title('Validation study', fontsize=18)
 
     def get_enetParam_matrices(self):
         """
@@ -692,6 +995,7 @@ class RENT_Classification(RENT_Base):
         self.autoEnetParSel = autoEnetParSel
         self.random_state = random_state
         self.poly = poly
+        self.type = "classification"
 
 
         # Check if data is dataframe and add index information
@@ -778,7 +1082,7 @@ class RENT_Classification(RENT_Base):
 
     def run_parallel(self, K):
         """
-        Parallel computation of ``K`` * ``len(C)`` * ``len(l1_ratios)`` models.
+        Parallel computation of ``K`` * ``len(C)`` * ``len(l1_ratios)``  classification models.
 
         PARAMETERS
         -----
@@ -879,122 +1183,7 @@ class RENT_Classification(RENT_Base):
                            model.predict_proba(X_test_std), index = \
                                 X_test.index)
 
-    def train(self):
-        """
-        This method trains ``K`` * ``len(C)`` * ``len(l1_ratios)`` models in total. The number
-        of models using the same hyperparamters is ``K``.
-        For each model elastic net regularisation is applied for variable selection. Internally
-        train calls the ``run_parallel()`` function.
-        """
-        #check if this is needed and does what it should (probably doesn't work because of parallelization)
-        # np.random.seed(0)
-        self.random_testsizes = np.random.uniform(self.testsize_range[0],
-                                                  self.testsize_range[1],
-                                                  self.K)
-
-        # Initiate a dictionary holding coefficients for each model. Keys are
-        # (C, K, num_w_init)
-        self.weight_dict = {}
-
-        # Initiate a dictionary holding computed performance metric for each
-        self.score_dict = {}
-
-
-        # Collect all coefs in a list that will be converted to a numpy array
-        self.weight_list = []
-
-        # Collect all coefs in a list that will be converted to a numpy array
-        self.score_list = []
-
-        # Initialize a dictionary to predict incorrect labels
-        self.predictions_dict = {}
-
-        # store
-        self.probas = {}
-        self.pred_proba_dict = {}
-
-        # stop runtime
-        start = time.time()
-        # Call parallelization function
-        Parallel(n_jobs=-1, verbose=0, backend='threading')(
-             map(delayed(self.run_parallel), range(self.K)))
-        ende = time.time()
-        self._runtime =  ende - start #'{:5.3f}s'.format(ende-start)
-
-        # Build a dictionary with the prediction probabilities
-        for C in self.C:
-            for l1 in self.l1_ratios:
-                count =  0
-                vec = pd.DataFrame(np.nan, index= self.indices, \
-                                   columns = ['remove'])
-                for k in self.probas.keys():
-
-                    if k[0] == C and k[1] == l1:
-                        vec.loc[self.probas[k].index,count] = \
-                        self.probas[k].iloc[:, 1].values
-                        count += 1
-
-                vec = vec.iloc[:, 1:]
-
-                self.pred_proba_dict[(C, l1)] = vec
-
-
-        # find best parameter setting and matrices
-        result_list=[]
-        for l1 in self.l1_ratios:
-            for C in self.C:
-                spec_result_list = []
-                for k in self.score_dict.keys():
-                    if k[0] == C and k[1] ==l1:
-                        spec_result_list.append(self.score_dict[k])
-                result_list.append(spec_result_list)
-
-        means=[]
-        for r in range(len(result_list)):
-            means.append(np.mean(result_list[r]))
-
-        self._scores_df = pd.DataFrame(np.array(means).reshape(\
-                                  len(self.l1_ratios), \
-                                  len(self.C)), \
-        index= self.l1_ratios, columns = self.C)
-
-        self._zeroes_df = pd.DataFrame(index = self.l1_ratios,\
-                                   columns=self.C)
-        for l1 in self.l1_ratios:
-            for C in self.C:
-                count = 0
-                for K in range(self.K):
-                    nz = \
-                    len(np.where(pd.DataFrame(self.weight_dict[(C, l1, K)\
-])==0)[0])
-                    count = count + nz / len(self.feat_names)
-                count = count / (self.K)
-                self._zeroes_df.loc[l1, C] = count
-
-        if len(self.C)>1 or len(self.l1_ratios)>1:
-            normed_scores = pd.DataFrame(self.min_max(self._scores_df))
-            normed_zeroes = pd.DataFrame(self.min_max(self._zeroes_df))
-            normed_zeroes = normed_zeroes.astype('float')
-
-            self._combination = 2 * ((normed_scores.copy().applymap(self.inv) + \
-                                        normed_zeroes.copy().applymap(
-                                            self.inv)).applymap(self.inv))
-        else:
-            self._combination = 2 * ((self._scores_df.copy().applymap(self.inv) + \
-                                 self._zeroes_df.copy().applymap(
-                                     self.inv)).applymap(self.inv))
-        self._combination.index = self._scores_df.index.copy()
-        self._combination.columns = self._scores_df.columns.copy()
-
-        self._scores_df.columns.name = 'Scores'
-        self._zeroes_df.columns.name = 'Zeroes'
-        self._combination.columns.name = 'Harmonic Mean'
-
-        best_row, best_col  = np.where(
-            self._combination == np.nanmax(self._combination.values))
-        self._best_l1_ratio = self._combination.index[np.nanmax(best_row)]
-        self._best_C = self._combination.columns[np.nanmin(best_col)]
-
+    
     def par_selection(self,
                         C,
                         l1_ratios,
@@ -1225,7 +1414,7 @@ class RENT_Classification(RENT_Base):
                               self._best_l1_ratio].index
         self.t = target_objects
         for obj in object_id:
-            fig, ax = plt.subplots(figsize=(15,12))
+            fig, ax = plt.subplots()
             data = self.pred_proba_dict[self._best_C, \
                               self._best_l1_ratio].loc[obj,:].dropna()
 
@@ -1258,168 +1447,6 @@ class RENT_Classification(RENT_Base):
             ax.set_title('Object: {0}, True class: {1}'.format(obj, \
                          target_objects.loc[obj,:].values[0]), fontsize=10)
 
-
-
-    def validation_study(self, test_data, test_labels, num_drawings, num_permutations,
-                          metric='mcc', alpha=0.05):
-        """
-        Two validation studies based on a statistical `t`-test. The null-hypotheses claims that
-            -RENT is not better than random feature selection.
-            -RENT performs equally on the real and a randomly permutated target.
-            
-        If ``poly='ON'`` or ``poly='ON_only_interactions'`` in the constructor, the test data is automatically transformed.
-
-        PARAMETERS
-        ----------
-        test_data : <numpy array> or <pandas dataframe>
-            Dataset, used to evalute Logistic Models in the validation study.
-            Dimension according to the paper: I_test x N
-        test_lables: <numpy array> or <pandas dataframe>
-            Response variable of the dataset.
-            Dimension: I_train x 1 or I_train x 0 when an row-array is used.
-        num_drawings: <int>
-            Number of independent feature subset drawings for VS1, more information given in the paper.
-        num_permutations: <int>
-            Number of independent test_labels permutations for VS2, more information given in the paper.
-        metric: <str>
-            The metric to evaluate ``K`` models. Default: ``metric='mcc'``.
-                - ``scoring='accuracy'`` :  Accuracy
-                - ``scoring='f1'`` : F1-score
-                - ``scoring='precision'`` : Precision
-                - ``scoring='recall'``: Recall
-                - ``scoring='mcc'`` : Matthews Correlation Coefficient
-
-        alpha: <float>
-            Significance level for the `t`-test. Default ``alpha=0.05``.
-        """
-        if not hasattr(self, 'sel_var'):
-            sys.exit('Run selectFeatures() first!')
-
-        if self.poly != 'OFF':
-            test_data = pd.DataFrame(self.polynom.fit_transform(test_data))
-            test_data.columns = self.data.columns
-            self.test_data = test_data
-        # RENT prediction
-        if self.scale == True:
-            sc = StandardScaler()
-            train_RENT = sc.fit_transform(self.data.iloc[:, self.sel_var])
-            test_RENT = sc.transform(test_data.iloc[:, self.sel_var])
-        elif self.scale == False:
-            train_RENT = self.data.iloc[:, self.sel_var].values
-            test_RENT = test_data.iloc[:, self.sel_var].values
-        if self.classifier == 'logreg':
-                model = LogisticRegression(penalty='none', max_iter=8000,
-                                           solver="saga", \
-                                           random_state=self.random_state).\
-                    fit(train_RENT,self.target)
-        else:
-            print("something")
-
-        if metric == 'mcc':
-                score = matthews_corrcoef(test_labels, model.predict(test_RENT))
-        elif metric == 'f1':
-            score = f1_score(test_labels, model.predict(test_RENT))
-        elif metric == 'acc':
-            score = accuracy_score(test_labels, model.predict(test_RENT))
-
-        # VS1
-        VS1 = []
-        for K in range(num_drawings):
-            # Randomly select features (# features = # RENT features selected)
-            columns = np.random.RandomState(seed=K).choice(
-                range(0,len(self.data.columns)),
-                                    len(self.sel_var))
-            if self.scale == True:
-                sc = StandardScaler()
-                train_VS1 = sc.fit_transform(self.data.iloc[:, columns])
-                test_VS1 = sc.transform(test_data.iloc[:, columns])
-            elif self.scale == False:
-                train_VS1 = self.data.iloc[:, columns].values
-                test_VS1 = test_data.iloc[:, columns].values
-            if self.classifier == 'logreg':
-                model = LogisticRegression(penalty='none', max_iter=8000,
-                                           solver="saga", 
-                                           random_state=self.random_state).\
-                    fit(train_VS1,self.target)
-            else:
-                print("something")
-            if metric == 'mcc':
-                VS1.append(matthews_corrcoef(test_labels, \
-                                                    model.predict(test_VS1)))
-            elif metric == 'f1':
-                VS1.append(f1_score(test_labels, \
-                                                    model.predict(test_VS1)))
-            elif metric == 'acc':
-                VS1.append(accuracy_score(test_labels, \
-                                                    model.predict(test_VS1)))
-
-        #p_value_VS1 = sum(VS1 > score) / len(VS1)
-        T = (np.mean(VS1) - score) / (np.std(VS1,ddof=1) / np.sqrt(len(VS1)))
-        print("mean VS1", np.mean(VS1))
-        p_value_VS1 = t.cdf(T, len(VS1)-1)
-        print("VS1: p-value for average score from random feature drawing: ", p_value_VS1)
-
-        if p_value_VS1 <= alpha:
-            print('With a significancelevel of ', alpha, ' H0 is rejected.')
-        else:
-            print('With a significancelevel of ', alpha, ' H0 is accepted.')
-        print(' ')
-        print('-----------------------------------------------------------')
-        print(' ')
-        # VS2
-        sc = StandardScaler()
-        test_data.columns = self.data.columns
-        VS2 = []
-        if self.scale == True:
-            train_VS2 = sc.fit_transform(self.data.iloc[:,self.sel_var])
-            test_VS2 = sc.transform(test_data.iloc[:, self.sel_var])
-        elif self.scale == False:
-            train_VS2 = self.data.iloc[:,self.sel_var].values
-            test_VS2 = test_data.iloc[:, self.sel_var].values
-        if self.classifier == 'logreg':
-            model = LogisticRegression(penalty='none', max_iter=8000,
-                                       solver="saga", 
-                                       random_state=self.random_state ).\
-                    fit(train_VS2, self.target)
-        else:
-            print("add model")
-
-        for K in range(num_permutations):
-            if metric == 'mcc':
-                VS2.append(matthews_corrcoef(
-                        np.random.RandomState(seed=K).permutation(test_labels),\
-                        model.predict(test_VS2)))
-            elif metric == 'f1':
-                VS2.append(f1_score(
-                        np.random.RandomState(seed=K).permutation(test_labels),\
-                        model.predict(test_VS2)))
-            elif metric == 'acc':
-                VS2.append(accuracy_score(
-                        np.random.RandomState(seed=K).permutation(test_labels),\
-                        model.predict(test_VS2)))
-
-
-        # p_value_VS2 = sum(VS2 > score) / len(VS2)
-        print("Mean VS2", np.mean(VS2))
-        T = (np.mean(VS2) - score) / (np.std(VS2,ddof=1) / np.sqrt(len(VS2)))
-        p_value_VS2 = t.cdf(T, len(VS2)-1)
-        print("VS2: p-value for score from permutation of test labels: ", p_value_VS2)
-
-        if p_value_VS2 <= alpha:
-            print('With a significancelevel of ', alpha, ' H0 is rejected.')
-        else:
-            print('With a significancelevel of ', alpha, ' H0 is accepted.')
-
-        plt.figure(figsize=(15, 7))
-        sns.kdeplot(VS1, shade=True, color="b", label='VS1')
-        sns.kdeplot(VS2, shade=True, color="g", label='VS2')
-        plt.axvline(x=score, color='r', linestyle='--',
-                    label='RENT prediction score')
-        plt.legend(prop={'size': 12})
-        plt.ylabel('density', fontsize=14)
-        plt.xticks(fontsize=12)
-        plt.yticks(fontsize=12)
-        plt.title('Validation study', fontsize=18)
 
 class RENT_Regression(RENT_Base):
     """
@@ -1533,6 +1560,7 @@ class RENT_Regression(RENT_Base):
         self.verbose = verbose
         self.autoEnetParSel = autoEnetParSel
         self.random_state = random_state
+        self.type = "regression"
 
 
         # Check if data is dataframe and add index information
@@ -1741,7 +1769,7 @@ class RENT_Regression(RENT_Base):
 
     def run_parallel(self, K):
         """
-        Parallel computation of ``K`` * ``len(C)`` * ``len(l1_ratios)`` models.
+        Parallel computation of ``K`` * ``len(C)`` * ``len(l1_ratios)``  regression models.
 
         PARAMETERS
         -----
@@ -1802,100 +1830,6 @@ class RENT_Regression(RENT_Base):
                 self.score_dict[(C, l1, K)] = score
                 self.score_list.append(score)
 
-
-    def train(self):
-        """
-        This method trains ``K`` * ``len(C)`` * ``len(l1_ratios)`` models in total. The number
-        of models using the same hyperparamters is ``K``.
-        For each model elastic net regularisation is applied for variable selection. Internally, train
-        calls the ``run_parallel()`` function.
-        """
-        #check if this is needed and does what it should (probably doesn't work because of parallelization)
-        np.random.seed(0)
-        self.random_testsizes = np.random.uniform(self.testsize_range[0],
-                                                  self.testsize_range[1],
-                                                  self.K)
-
-        # Initiate a dictionary holding coefficients for each model. Keys are
-        # (C, K, num_w_init)
-        self.weight_dict = {}
-
-        # Initiate a dictionary holding computed performance metric for each
-        self.score_dict = {}
-
-
-        # Collect all coefs in a list that will be converted to a numpy array
-        self.weight_list = []
-
-        # Collect all coefs in a list that will be converted to a numpy array
-        self.score_list = []
-
-        # Initialize a dictionary to predict incorrect labels
-        self.predictions_abs_errors = {}
-
-        # stop runtime
-        start = time.time()
-        # Call parallelization function
-        Parallel(n_jobs=-1, verbose=0, backend='threading')(
-             map(delayed(self.run_parallel), range(self.K)))
-        ende = time.time()
-        self._runtime = ende-start
-
-        # find best parameter setting and matrices
-        result_list=[]
-        for l1 in self.l1_ratios:
-            for C in self.C:
-                spec_result_list = []
-                for k in self.score_dict.keys():
-                    if k[0] == C and k[1] ==l1:
-                        spec_result_list.append(self.score_dict[k])
-                result_list.append(spec_result_list)
-
-        means=[]
-        for r in range(len(result_list)):
-            means.append(np.mean(result_list[r]))
-
-        self._scores_df = pd.DataFrame(np.array(means).reshape(\
-                                  len(self.l1_ratios), \
-                                  len(self.C)), \
-        index= self.l1_ratios, columns = self.C)
-
-        self._zeroes_df = pd.DataFrame(index = self.l1_ratios,\
-                                   columns=self.C)
-        for l1 in self.l1_ratios:
-            for C in self.C:
-                count = 0
-                for K in range(self.K):
-                    nz = \
-                    len(np.where(pd.DataFrame(self.weight_dict[(C, l1, K)\
-])==0)[0])
-                    count = count + nz / len(self.feat_names)
-                count = count / (self.K)
-                self._zeroes_df.loc[l1, C] = count
-
-        if len(self.C)>1 or len(self.l1_ratios)>1:
-            normed_scores = pd.DataFrame(self.min_max(self._scores_df.copy().values))
-            normed_zeroes = pd.DataFrame(self.min_max(self._zeroes_df.copy().values))
-            normed_zeroes = normed_zeroes.astype('float')
-
-            self._combination = 2 * ((normed_scores.copy().applymap(self.inv) + \
-                                        normed_zeroes.copy().applymap(
-                                            self.inv)).applymap(self.inv))
-        else:
-            self._combination = 2 * ((self._scores_df.copy().applymap(self.inv) + \
-                                 self._zeroes_df.copy().applymap(
-                                     self.inv)).applymap(self.inv))
-        self._combination.index = self._scores_df.index.copy()
-        self._combination.columns = self._scores_df.columns.copy()
-
-        self._scores_df.columns.name = 'Scores'
-        self._zeroes_df.columns.name = 'Zeroes'
-        self._combination.columns.name = 'Harmonic Mean'
-
-        best_row, best_col  = np.where(
-            self._combination == np.nanmax(self._combination.values))
-        self._best_l1_ratio = self._combination.index[np.nanmax(best_row)]
-        self._best_C = self._combination.columns[np.nanmin(best_col)]
 
     def summary_objects(self):
         """
@@ -2006,114 +1940,3 @@ class RENT_Regression(RENT_Base):
                 ax.set_ylabel('frequencies')
                 ax.set_xlabel('Absolute Error')
             ax.set_title('Object: {0}')
-
-    def validation_study(self, test_data, test_labels,
-                          num_drawings, num_permutations, alpha=0.05):
-        """
-        Two validation studies based on a statistical `t`-test. The null-hypotheses claims that
-            -RENT is not better than random feature selection.
-            -RENT performs equally on the real and a randomly permutated target.
-            
-        If ``poly='ON'`` or ``poly='ON_only_interactions'`` in the constructor, the test data is automatically transformed.
-
-        PARAMETERS
-        ----------
-        test_data : <numpy array> or <pandas dataframe>
-            Dataset, used to evalute Logistic Models in the validation study.
-            Dimension according to the paper: I_test x N
-        test_lables: <numpy array> or <pandas dataframe>
-            Response variable of the dataset.
-            Dimension: I_train x 1 or I_train x 0 when an row-array is used.
-        num_drawings: <int>
-            Number of independent feature subset drawings for VS1, more information given in the paper.
-        num_permutations: <int>
-            Number of independent test_labels permutations for VS2, more information given in the paper.
-        alpha: <float>
-            Significance level for the `t`-test. Default ``alpha=0.05``.
-        """
-        if not hasattr(self, 'sel_var'):
-            sys.exit('Run selectFeatures() first!')
-            
-        if self.poly != 'OFF':
-            test_data = pd.DataFrame(self.polynom.fit_transform(test_data))
-            test_data.columns = self.data.columns
-            self.test_data = test_data
-            
-        if self.scale == True:
-            sc = StandardScaler()
-            train_RENT = sc.fit_transform(self.data.iloc[:,self.sel_var])
-            test_RENT = sc.transform(test_data.loc[:, self.sel_var])
-        elif self.scale == False:
-            train_RENT = self.data.iloc[:,self.sel_var].values
-            test_RENT = test_data.loc[:, self.sel_var].values
-
-        model = LinearRegression().fit(train_RENT,self.target)
-        score = r2_score(test_labels, model.predict(test_RENT))
-        # VS1
-        VS1 = []
-        for K in range(num_drawings):
-            # Randomly select features (# features = # RENT features selected)
-            columns = np.random.RandomState(seed=K).choice(
-                range(0,len(self.data.columns)),
-                                    len(self.sel_var))
-
-            if self.scale == True:
-                sc = StandardScaler()
-                train_VS1 = sc.fit_transform(self.data.iloc[:, columns])
-                test_VS1 = sc.transform(test_data.iloc[:, columns])
-            elif self.scale == False:
-                train_VS1 = self.data.iloc[:, columns].values
-                test_VS1 = test_data.iloc[:, columns].values
-
-            model = LinearRegression().fit(train_VS1,self.target)
-
-            VS1.append(r2_score(test_labels, model.predict(test_VS1)))
-
-        T = (np.mean(VS1) - score) / (np.std(VS1,ddof=1) / np.sqrt(len(VS1)))
-        print("mean VS1", np.mean(VS1))
-        p_value_VS1 = t.cdf(T, len(VS1)-1)
-        print("VS1: p-value for average score from random feature drawing: ", p_value_VS1)
-
-        if p_value_VS1 <= alpha:
-            print('With a significancelevel of ', alpha, ' H0 is rejected.')
-        else:
-            print('With a significancelevel of ', alpha, ' H0 is accepted.')
-        print(' ')
-        print('-----------------------------------------------------------')
-        print(' ')
-        test_data.columns = self.data.columns
-        VS2 = []
-        if self.scale == True:
-            sc = StandardScaler()
-            train_VS2 = sc.fit_transform(self.data.iloc[:,self.sel_var])
-            test_VS2 = sc.transform(test_data.loc[:, self.sel_var])
-        elif self.scale == False:
-            train_VS2 = self.data.iloc[:,self.sel_var].values
-            test_VS2 = test_data.loc[:, self.sel_var].values
-
-        model = LinearRegression().fit(train_VS2,self.target)
-        for K in range(num_permutations):
-            VS2.append(r2_score(
-                    np.random.RandomState(seed=K).permutation(test_labels),\
-                    model.predict(test_VS2)))
-
-        print("Mean VS2", np.mean(VS2))
-        T = (np.mean(VS2) - score) / (np.std(VS2,ddof=1) / np.sqrt(len(VS2)))
-        p_value_VS2 = t.cdf(T, len(VS2)-1)
-        print("VS2: p-value for score from permutation of test labels: ", p_value_VS2)
-
-        if p_value_VS2 <= alpha:
-            print('With a significancelevel of ', alpha, ' H0 is rejected.')
-        else:
-            print('With a significancelevel of ', alpha, ' H0 is accepted.')
-
-        plt.figure(figsize=(15, 7))
-        sns.kdeplot(VS1, shade=True, color="b", label='VS1')
-        sns.kdeplot(VS2, shade=True, color="g", label='VS2')
-        plt.axvline(x=score, color='r', linestyle='--',
-                    label='RENT prediction score')
-        plt.legend(prop={'size': 12})
-        plt.ylabel('density', fontsize=14)
-        plt.xticks(fontsize=12)
-        plt.yticks(fontsize=12)
-        plt.title('Validation study', fontsize=18)

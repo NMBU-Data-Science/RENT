@@ -1,4 +1,4 @@
-index,mean radius,mean texture,mean perimeter,mean area,mean smoothness,mean compactness,mean concavity,mean concave points,mean symmetry,mean fractal dimension,radius error,texture error,perimeter error,area error,smoothness error,compactness error,concavity error,concave points error,symmetry error,fractal dimension error,worst radius,worst texture,worst perimeter,worst area,worst smoothness,worst compactness,worst concavity,worst concave points,worst symmetry,worst fractal dimension
-tau_1,0.0,0.24,0.0,0.0,0.0,0.0,0.0,0.89,0.0,0.0,0.61,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,1.0,0.11,0.0,0.42,0.0,0.11,1.0,0.96,0.0
-tau_2,0.0,0.24,0.0,0.0,0.0,0.0,0.0,0.89,0.0,0.0,0.61,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,1.0,0.11,0.0,0.42,0.0,0.11,1.0,0.96,0.0
-tau_3,,0.9999869309189311,,,,,,1.0,,,0.9999999999999982,,,,,,,,,,1.0,1.0,0.9949316882495698,,0.9999985676671478,,0.9974386044750612,1.0,1.0,
+index,F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,F20,F21,F22,F23,F24,F25,F26,F27,F28,F29,F30
+tau_1,0.09,0.1,0.14,0.0,0.0,0.0,0.06,1.0,0.0,0.0,0.22,0.0,0.0,0.02,0.0,0.0,0.0,0.0,0.0,0.0,1.0,1.0,1.0,0.54,0.95,0.0,0.09,1.0,0.84,0.0
+tau_2,0.09,0.1,0.14,0.0,0.0,0.0,0.06,1.0,0.0,0.0,0.22,0.0,0.0,0.02,0.0,0.0,0.0,0.0,0.0,0.0,1.0,1.0,1.0,0.54,0.95,0.0,0.09,1.0,0.84,0.0
+tau_3,0.9930204194713798,0.9965101568508563,0.9992292840459392,,,,0.9860772231257534,1.0,,,0.9994917302504176,,,0.8720796873786225,,,,,,,1.0,1.0,1.0,0.9999999999958269,1.0,,0.9890631334152544,1.0,1.0,

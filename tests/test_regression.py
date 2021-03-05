@@ -24,7 +24,7 @@ def test_RENT_Regression():
     my_target = data[1]
     my_feat_names = ['f{0}'.format(x+1) for x in range(len(my_data.columns))]
 
-    #split
+    #split data to get train data and train labels
     train_data, test_data, train_labels, test_labels = train_test_split(my_data, my_target, test_size=0.3, random_state=0)
 
 
@@ -47,8 +47,8 @@ def test_RENT_Regression():
 
     analysis.train()
     selected_features = analysis.selectFeatures(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
-    summary_criteria = analysis.summary_criteria().reset_index()
-    summary_objects = analysis.summary_objects().reset_index()
+    summary_criteria = analysis.get_summary_criteria().reset_index()
+    summary_objects = analysis.get_summary_objects().reset_index()
     object_errors = analysis.get_object_errors().reset_index()
     weights = analysis.get_weight_distributions().reset_index()
 

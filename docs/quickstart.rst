@@ -38,6 +38,13 @@ The source code is available at the `RENT GitHub repository`_.
 .. _RENT GitHub repository: https://github.com/NMBU-Data-Science/RENT
 
 
+UML-Diagram
+-----------
+The UML-diagram provides an overview on the class-structure of the present RENT implementation.
+
+.. image:: RENT_UML.png
+
+
 Testing
 -------
 

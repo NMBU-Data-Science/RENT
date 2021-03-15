@@ -33,7 +33,8 @@ from scipy.stats import t
 
 class RENT_Base(ABC):
     """
-    This is the base class for RENT_Classification and RENT_Regression.
+    The constructor initializes common variables of RENT_Classification and RENT_Regresson.
+    The inputs are described in detail in RENT for binary classification and RENT for regression, respectively.
     """
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
@@ -151,6 +152,7 @@ class RENT_Base(ABC):
         else:
             sys.exit('Value for paramter "poly" not regcognised.')
         
+
         if self._autoEnetParSel == True:
             self._C, self._l1_ratios = self._par_selection(C=C, 
                                                            l1_ratios=l1_ratios)
@@ -179,8 +181,9 @@ class RENT_Base(ABC):
 
     def train(self):
         """
-        This method trains ``K`` * ``len(C)`` * ``len(l1_ratios)`` models in total. 
+        If ``autoEnetParSel=False``, this method trains ``K`` * ``len(C)`` * ``len(l1_ratios)`` models in total. 
         The number of models using the same hyperparamters is ``K``.
+        Otherwise, if the best parameter combination is selected with cross-validation, only ``K`` models are trained.
         For each model elastic net regularisation is applied for feature selection. 
         Internally, train calls the ``run_parallel()`` function for classification 
         or regression, respectively.
@@ -263,19 +266,19 @@ class RENT_Base(ABC):
 
     def selectFeatures(self, tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975):
         """
-        Selectes features based on the cutoff values for tau_1_cutoff, tau_2_cutoff and tau_3_cutoff.
+        Selects features based on the cutoff values for tau_1_cutoff, tau_2_cutoff and tau_3_cutoff.
 
         Parameters
         ----------
         tau_1_cutoff : <float>
             Cutoff value for tau_1 criterion. Choose value between 0 and
-            1. Default ``tau_1=0.9``.
+            1. Default: ``tau_1=0.9``.
         tau_2_cutoff : <float>
             Cutoff value for tau_2 criterion. Choose value between 0 and
-            1. Default ``tau_2=0.9``.
+            1. Default:``tau_2=0.9``.
         tau_3_cutoff : <float>
             Cutoff value for tau_3 criterion. Choose value between 0 and
-            1. Default ``tau_3=0.975``.
+            1. Default: ``tau_3=0.975``.
 
         Returns
         -------
@@ -315,14 +318,14 @@ class RENT_Base(ABC):
                 (self._summary_df.iloc[2, :] >= tau_3_cutoff\
                             ))[0]
         
-        if len(self._sel_var) == 0:
-            warnings.warn("Attention! Thresholds are too restrictive - no features selected!")
+        #if len(self._sel_var) == 0:
+        #    warnings.warn("Attention! Thresholds are too restrictive - no features selected!")
         return self._sel_var
 
     def get_summary_criteria(self):
         """
         Summary statistic of the selection criteria tau_1, tau_2 and tau_3
-        for each feature.
+        for each feature. All three criteria are in [0,1] .
         
         RETURNS
         -------
@@ -335,9 +338,7 @@ class RENT_Base(ABC):
 
     def get_weight_distributions(self, binary = False):
         """
-        Feature weights over the ``K`` models (Beta matrix in paper).
-        The rows represent weights of one model, columns
-        represents weights across models in ensemble for each feature
+        Feature weights over the ``K`` models. For each combination of model and feature, the weight is presented.
         
         PARAMETERS
         ----------
@@ -348,7 +349,7 @@ class RENT_Base(ABC):
         RETURNS
         -------
         <pandas dataframe>
-            Weight matrix.
+            Weight matrix. Rows represent models (1:K), columns represents features.
         """
         if not hasattr(self, '_weight_dict'):
             sys.exit('Run train() first!')
@@ -405,24 +406,24 @@ class RENT_Base(ABC):
         RETURNS
         -------
         <list> of <pandas dataframes>
-            - dataFrame_1: holds average scores for predictive performance
-            - dataFrame_2: holds average percentage of how many feature weights were set to zero
-            - dataFrame_3: holds harmonic means between dataFrame_1 and dataFrame_2
+            - dataFrame_1: average scores for predictive performance. The higher the score, the better the parameter combination. 
+            - dataFrame_2: average percentage of how many feature weights were set to zero. The higher the average percentage, the stronger the feature selection with the corresponding paramter combination.
+            - dataFrame_3: harmonic means between dataFrame_1 and dataFrame_2. The parameter combination with the highest harmonic mean is selected.
         """
         if self._autoEnetParSel == True:
             return self._scores_df_cv, self._zeroes_df_cv, self._combination_cv
         else:
-            print("Parameters have not been selected with Cross Validation.")
+            print("autoEnetParSel=False - parameters have not been selected with Cross Validation.")
 
     def get_enet_params(self):
         """
-        Get current hyperparameter combination of ``C`` and ``l1_ratio``, that is used for analyses.
+        Get current hyperparameter combination of ``C`` and ``l1_ratio``, that is used in RENT analyses. By default it is the best combination found. 
+        If `autoEnetParSel=False` the user can change the combination with ``set_enet_params()``. 
         
         RETURNS
         -------
         <tuple>
-            A tuple holding (C, l1_ratio) for the current average predictive performance. This
-            combination of C l1_ratio will be used in subsequent class methods.
+            A tuple (C, l1_ratio).
         """
         if not hasattr(self, '_best_C'):
             sys.exit('Run train() first!')
@@ -459,7 +460,7 @@ class RENT_Base(ABC):
 
     def plot_selection_frequency(self):
         """
-        Plots tau_1 value for each feature.
+        Barplot of tau_1 value for each feature.
         """
         if not hasattr(self, '_perc'):
             sys.exit('Run selectFeatures() first!')
@@ -474,7 +475,7 @@ class RENT_Base(ABC):
 
     def plot_elementary_models(self):
         """
-        Lineplot of prediction score and % of weights set to 0 over ```K`` models.
+        Two lineplots where the first curve shows the prediction score over ``K`` models. The second curve plots the percentage of weights set to 0, respectively.
         """
         fig, ax = plt.subplots(figsize=(10, 7))
         num_zeroes = np.sum(1 - self.get_weight_distributions(binary=True), \
@@ -495,42 +496,39 @@ class RENT_Base(ABC):
                         problem='class', hoggorm=True, 
                         hoggorm_plots=[1,2,3,4,6], sel_vars=True):
         """
-        PCA analysis. Plots scores, Loadings, Correlation Loadings, Biplot, 
-        Explained variance plot
+        PCA analysis. For classification problems, PCA can be computed either on a single class separately or on both classes. Different coloring possibilities for the scores are provided.
+        Besides scores, loadings, correlation Loadings, biplot, and explained variance plots are available. 
 
         Parameters
         ----------
         cl : <int>, <str>
-            Run PCA on cl. The default is ``0``.
+            Perform PCA on cl. Default: ``cl=0``.
                 - ``cl=0``: Class 0.
                 - ``cl=1``: Class 1.
                 - ``cl='both'``: All objects (incorrect predictions coloring).
-                - ``cl='continuous'``: All objects (gradient coloring).
+                - ``cl='continuous'``: All objects (gradient coloring). For classification problems, this is the only valid option.
         comp1 : <int>
-            First PCA component to plot. The default is 1.
+            First PCA component to plot. Default: ``comp1=1``.
             
         comp2 : <int>
-            Second PCA component to plot. The default is 2.
+            Second PCA component to plot. Default: ``comp2=2``.
             
         problem : <str>
-            Classification or regression problem. The default is 'class'.
+            Classification or regression problem. Default: ``problem='class'``.
                 - ``problem='class'``: Classification problem. Can be used with all possible ``cl`` inputs.
                 - ``problem='regression'``: Regression problem. Can only be used with ``cl='continuous'``.
         hoggorm : <boolean>
-            Plots from hoggormplot package.
+            To not use plots from hoggormplot package, set ``hoggorm=False``. Default: ``hoggorm=True``.
         hoggorm_plots : <list>
-            Which plots from hoggormplot shall be plotted.
+            Which plots from hoggormplot shall be plotted. Only plots that are relevant for RENT are possible options. ``hoggorm=True`` must be set. Default: ``hoggorm_plots=[1,2,3,4,6]``.
                 - 1: scores plot
                 - 2: loadings plot
                 - 3: correlation loadings plot
                 - 4: biplot
-                - 5: explained variance plot
+                - 6: explained variance plot
         sel_vars : <boolean>
-            Only use the features selected with RENT for PCA. The default is True.
-            
-        Returns
-        -------
-        None.
+            Only use the features selected with RENT for PCA. Default: ``sel_vars=True``.
+        
         """
         if cl not in [0, 1, 'both', 'continuous']:
             sys.exit(" 'cl' must be either 0, 1, 'both' or 'continuous'")
@@ -726,28 +724,25 @@ class RENT_Base(ABC):
     def plot_validation_study(self, test_data, test_labels, num_drawings, 
                               num_permutations, metric='mcc', alpha=0.05):
         """
-        Two validation studies based on a statistical `t`-test. The null-hypotheses claims that
+        Two validation studies based on a Student's `t`-test. The null-hypotheses claim that
             - RENT is not better than random feature selection.
-            - RENT performs equally on the real and a randomly permutated target.
+            - RENT performs equally well on the real and a randomly permutated target.
             
-        If ``poly='ON'`` or ``poly='ON_only_interactions'`` in the constructor, 
-        the test data is automatically transformed.
+        If ``poly='ON'`` or ``poly='ON_only_interactions'`` in the RENT initialization, 
+        the test data is automatically polynomially transformed.
 
         PARAMETERS
         ----------
         
         test_data : <numpy array> or <pandas dataframe>
-            Dataset, used to evalute Logistic Models in the validation study.
-            Dimension according to the paper: I_test x N.
+            Dataset, used to evalute predictive models in the validation study.
+            Must be independent of the data, RENT is computed on.
         test_lables: <numpy array> or <pandas dataframe>
-            Response variable of the dataset.
-            Dimension: I_train x 1 or I_train x 0 when an row-array is used.
+            Response variable of test_data.
         num_drawings: <int>
-            Number of independent feature subset drawings for VS1, 
-            more information given in the paper.
+            Number of independent feature subset drawings for VS1.
         num_permutations: <int>
-            Number of independent test_labels permutations for VS2, 
-            more information given in the paper.
+            Number of independent test_labels permutations for VS2.
         metric: <str>
             The metric to evaluate ``K`` models. Default: ``metric='mcc'``. 
             Only relevant for classification tasks. For regression R2-score is used.
@@ -881,42 +876,40 @@ class RENT_Classification(RENT_Base):
     -----
 
     data : <numpy array> or <pandas dataframe>
-        Dataset on which feature selection shall be performed.
-        Dimension according to the paper: I_train x N
+        Dataset on which feature selection is performed.
 
     target : <numpy array> or <pandas dataframe>
         Response variable of data.
-        Dimension: I_train x 1 or I_train x 0 when an row-array is used.
 
     feat_names : <list>
-        List holding feature names. Preferably a list of string values.
+        List holding feature names. Preferably a list of string values. If empty, feature names will be generated automatically. Default: ``feat_names=[]``.
 
     C : <list of int or float values>
-        List holding regularisation parameters for K models. The lower,
-        the stronger the regularization is .
+        List with regularisation parameters for ``K`` models. The lower,
+        the stronger the regularization is. Default: ``C=[1,10]``.
 
     l1_ratios : <list of int or float values>
-        List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
-        pure l2 use 0, for pure l1 use 1.
+        List holding ratios between l1 and l2 penalty. Values must be in [0,1]. For
+        pure l2 use 0, for pure l1 use 1. Default: ``l1_ratios=[0.6]``.
 
     autoEnetParSel : <boolean>
         Cross validated elastic net hyperparameter selection.
             - ``autoEnetParSel=True`` : peform a cross validation pre-hyperparameter search, s.t. RENT runs only with one hyperparamter setting.
-            - ``autoEnetParSel=False`` : perform RENT with each combination of ``C`` and ``l1_ratios``.
+            - ``autoEnetParSel=False`` : perform RENT with each combination of ``C`` and ``l1_ratios``. Default: ``autoEnetParSel=True``.
         
     poly : <str> 
-        Create non-linear features.
+        Create non-linear features. Default: ``poly='OFF'``.
             - ``poly='OFF'`` : no feature interaction.
             - ``poly='ON'`` : feature interaction and squared features (2-polynoms).
             - ``poly='ON_only_interactions'`` : only feature interactions, no squared features.
 
     testsize_range : <tuple float>
          Range of random proportion of dataset toinclude in test set,
-         low and high are floats between 0 and 1, default (0.2, 0.6).
-         Testsize can be fixed by setting low and high to the same value.
+         low and high are floats between 0 and 1.
+         Testsize can be fixed by setting low and high to the same value. Default: ``testsize_range=(0.2, 0.6)``.
 
     scoring : <str>
-        The metric to evaluate K models. Default: ``metric='mcc'``.
+        The metric to evaluate K models. Default: ``scoring='mcc'``.
             - ``scoring='accuracy'`` :  Accuracy
             - ``scoring='f1'`` : F1-score
             - ``scoring='precision'`` : Precision
@@ -924,14 +917,14 @@ class RENT_Classification(RENT_Base):
             - ``scoring='mcc'`` : Matthews Correlation Coefficient
 
     classifier : <str>
-        Classifier used in RENT.
+        Classifier with witch models are trained.
             -``classifier='logreg'`` : Logistic Regression
 
     K : <int>
         Number of unique train-test splits. Default: ``K=100``.
 
     scale : <boolean>
-        Scale each of the K train datasets. Default: ``scale=True``.
+        Scale each of the ``K`` train datasets. Default: ``scale=True``.
     
     random_state : <None or int>
         Set a random state to reproduce your results. Default: ``random_state=None``.
@@ -939,13 +932,13 @@ class RENT_Classification(RENT_Base):
         - ``random_state={0,1,2,...}`` : random seed set.
         
     verbose : <int>
-        Track the train process if value > 1. If ``value = 1``, only the overview
-        of RENT input will be shown.
+        Track the train process if value > 1. If ``verbose = 1``, only the overview
+        of RENT input will be shown. Default: ``verbose=0``.
 
     RETURNS
     ------
     <class>
-        A class that contains the RENT-Regression model.
+        A class that contains the RENT classification model.
     """
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
@@ -990,11 +983,11 @@ class RENT_Classification(RENT_Base):
             List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
             pure l2 use 0, for pure l1 use 1.
         n_splits : <int>
-            Number of cross validation folds. Default ``n_splits=5``.
+            Number of cross validation folds. Default: ``n_splits=5``.
             
         testsize_range: <tuple float>
             Range of random proportion of dataset toinclude in test set,
-            low and high are floats between 0 and 1. Default ``testsize_range=(0.2, 0.6)``.
+            low and high are floats between 0 and 1. Default: ``testsize_range=(0.2, 0.6)``.
             Testsize can be fixed by setting low and high to the same value.
 
         RETURNS
@@ -1037,10 +1030,10 @@ class RENT_Classification(RENT_Base):
                     sgd = LogisticRegression(penalty="elasticnet", C=reg,
                                              solver="saga", l1_ratio=l1,
                                              random_state=self._random_state)
+
                     sgd.fit(train_data, train_target)
 
                     params = np.where(sgd.coef_ != 0)[1]
-
                     if len(params) == 0:
                         scores.append(np.nan)
                         zeroes.append(np.nan)
@@ -1067,10 +1060,11 @@ class RENT_Classification(RENT_Base):
         self._scores_df_cv.columns.name = 'Scores'
         self._zeroes_df_cv.columns.name = 'Zeroes'
 
-        Parallel(n_jobs=-1, verbose=0, backend="threading")(
+        Parallel(n_jobs=-1, verbose=1, backend="threading")(
              map(delayed(run_parallel), l1_ratios))
 
-        if len(np.unique(scores_df.values)) ==1:
+        
+        if len(np.unique(scores_df.stack()))==1:
             best_row, best_col = np.where(zeroes_df.values == \
                                                   np.nanmax(zeroes_df.values))
             best_l1 = zeroes_df.index[np.nanmax(best_row)]
@@ -1085,24 +1079,26 @@ class RENT_Classification(RENT_Base):
 
             combination.index = scores_df.index.copy()
             combination.columns = scores_df.columns.copy()
+
             best_combination_row, best_combination_col = np.where(combination == \
                                                       np.nanmax(combination.values))
             best_l1 = combination.index[np.nanmax(best_combination_row)]
             best_C = combination.columns[np.nanmin(best_combination_col)]
-
-        self._combination_cv = combination
-        self._combination_cv.columns.name = 'Harmonic Mean'
+		
+            self._combination_cv = combination
+            self._combination_cv.columns.name = 'Harmonic Mean'
 
         return(best_C, best_l1)
 
     def run_parallel(self, K):
         """
-        Parallel computation of ``K`` * ``len(C)`` * ``len(l1_ratios)``  
-        classification models.
+        If ``autoEnetParSel=False``, parallel computation of ``K`` * ``len(C)`` * ``len(l1_ratios)`` classification models. Otherwise, computation of ``K`` models.
+        
 
         PARAMETERS
         -----
-        ``K`` : range of train-test splits
+        K: 
+            Range of train-test splits.
         """
         # Loop through all C
         for C in self._C:
@@ -1207,14 +1203,16 @@ class RENT_Classification(RENT_Base):
 
     def get_summary_objects(self):
         """
-        This method computes a summary of classifications for each sample
+        Each object of the dataset is a certain number between 0 (never) and ``K`` (always) part of the test set inside RENT training.
+        This method computes a summary of classification results for each sample
         across all models, where the sample was part of the test set.
-        Contains information on how often a sample has been mis-classfied.
+        The summary contains information on how often a sample has been mis-classfied.
 
         RETURNS
         -------
         <pandas dataframe>
-        Data matrix. Rows represent objects, columns represent generated variables.
+        Data matrix. Rows represent objects, columns represent generated variables. The first column denotes how often the object was part of the test set, the second column reveals the true class
+        of the object, the third column indicates how often the object was classified incorrectly and the fourth column shows the corresponding percentage of incorrectness.
 
         """
         if not hasattr(self, '_best_C'):
@@ -1251,7 +1249,7 @@ class RENT_Classification(RENT_Base):
 
     def get_object_probabilities(self):
         """
-        Logistic Regression probabilities for each object.
+        Logistic Regression probabilities for each combination of object and model. The method can only be used if ``classifier='logreg'``.
 
         RETURNS
         -------
@@ -1279,17 +1277,17 @@ class RENT_Classification(RENT_Base):
     def plot_object_probabilities(self, object_id, binning='auto', lower=0,
                                   upper=1, kde=False, norm_hist=False):
         """
-        Histograms of predicted probabilities.
+        Histograms of predicted probabilities from ``get_object_probabilities()``.
         
         PARAMETERS
         ----------
         object_id : <list of int or str>
-            Samples/Objects whos histograms shall be plotted. 
+            Objects whos histograms shall be plotted. 
             Type depends on the index format of the dataframe.
         lower : <float>
-            Lower bound of the x-axis. Default ``lower=0``.
+            Lower bound of the x-axis. Default: ``lower=0``.
         upper : <float>
-            Upper bound of the x-axis. Default ``upper=1``.
+            Upper bound of the x-axis. Default: ``upper=1``.
         kde : <boolean>
             Kernel density estimation, from `seaborn distplot`.
             Default: ``kde=False``.
@@ -1450,38 +1448,36 @@ class RENT_Regression(RENT_Base):
 
     data: <numpy array> or <pandas dataframe>
         Dataset on which feature selection shall be performed.
-        Dimension according to the paper: I_train x N
 
     target: <numpy array> or <pandas dataframe>
         Response variable of data.
-        Dimension: I_train x 1 or I_train x 0 when an row-array is used.
 
     feat_names : <list>
-        List holding feature names. Preferably a list of string values.'
+        List holding feature names. Preferably a list of string values. If empty, feature names will be generated automatically. Default: ``feat_names=[]``.
     
+    C : <list of int or float values>
+        List with regularisation parameters for ``K`` models. The lower,
+        the stronger the regularization is. Default: ``C=[1,10]``.
+
+    l1_ratios : <list of int or float values>
+        List holding ratios between l1 and l2 penalty. Values must be in [0,1]. For
+        pure l2 use 0, for pure l1 use 1. Default: ``l1_ratios=[0.6]``.
+
     autoEnetParSel : <boolean>
         Cross validated elastic net hyperparameter selection.
             - ``autoEnetParSel=True`` : peform a cross validation pre-hyperparameter search, s.t. RENT runs only with one hyperparamter setting.
-            - ``autoEnetParSel=False`` : perform RENT with each combination of ``C`` and ``l1_ratios``.
-
-    C : <list of int or float values>
-        List holding regularisation parameters for K models. The lower,
-        the stronger the regularization is .
-
-    l1_ratios : <list of int or float values>
-        List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
-        pure l2 use 0, for pure l1 use 1.
+            - ``autoEnetParSel=False`` : perform RENT with each combination of ``C`` and ``l1_ratios``. Default: ``autoEnetParSel=True``.
         
     poly : <str> 
-        Create non-linear features.
+        Create non-linear features. Default: ``poly='OFF'``.
             - ``poly='OFF'`` : no feature interaction.
             - ``poly='ON'`` : feature interaction and squared features (2-polynoms).
             - ``poly='ON_only_interactions'`` : only feature interactions, no squared features.
 
     testsize_range : <tuple float>
          Range of random proportion of dataset toinclude in test set,
-         low and high are floats between 0 and 1, default (0.2, 0.6).
-         Testsize can be fixed by setting low and high to the same value.
+         low and high are floats between 0 and 1.
+         Testsize can be fixed by setting low and high to the same value. Default: ``testsize_range=(0.2, 0.6)``.
 
     K : <int>
         Number of unique train-test splits. Default ``K=100``.
@@ -1495,13 +1491,13 @@ class RENT_Regression(RENT_Base):
         - ``random_state={0,1,2,...}`` : random seed set.
         
     verbose : <int>
-        Track the train process if value > 1. If value  = 1 only the overview
-        of RENT input will be shown. Default ``verbose=0``.
+        Track the train process if value > 1. If ``verbose = 1``, only the overview
+        of RENT input will be shown. Default: ``verbose=0``.
 
     RETURNS
     ------
     class
-        A class that contains the RENT-Regression model.
+        A class that contains the RENT regression model.
     """
 
     def __init__(self, data, target, feat_names=[], autoEnetParSel=True,
@@ -1607,7 +1603,8 @@ class RENT_Regression(RENT_Base):
         Parallel(n_jobs=-1, verbose=0, backend="threading")(
              map(delayed(run_parallel), l1_ratios))
 
-        if len(np.unique(scores_df.values)) ==1:
+        s_arr = scores_df.stack()
+        if len(np.unique(s_arr))==1:
             best_row, best_col = np.where(zeroes_df.values == \
                                                   np.nanmax(zeroes_df.values))
             best_l1 = zeroes_df.index[np.nanmax(best_row)]
@@ -1623,6 +1620,7 @@ class RENT_Regression(RENT_Base):
             combination.columns = scores_df.columns.copy()
             best_combination_row, best_combination_col = np.where(combination == \
                                                       np.nanmax(combination.values))
+                                               
             best_l1 = combination.index[np.nanmax(best_combination_row)]
             best_C = combination.columns[np.nanmin(best_combination_col)]
 
@@ -1636,12 +1634,12 @@ class RENT_Regression(RENT_Base):
 
     def run_parallel(self, K):
         """
-        Parallel computation of ``K`` * ``len(C)`` * ``len(l1_ratios)``  
-        regression models.
-
+        If ``autoEnetParSel=False``, parallel computation of ``K`` * ``len(C)`` * ``len(l1_ratios)`` linear regression models. Otherwise, computation of ``K`` models.
+        
         PARAMETERS
         -----
-        ``K`` : range of train-test splits
+        K: 
+            Range of train-test splits.
         """
 
         # Loop through all C
@@ -1700,12 +1698,16 @@ class RENT_Regression(RENT_Base):
 
     def get_summary_objects(self):
         """
-        This method computes a summary of average absolute errors for each sample
-        across all ``K`` models, where the sample was part of at least one test set.
+        Each object of the dataset is a certain number between 0 (never) and ``K`` (always) part of th test set inside RENT training.
+        This method computes a summary of the average absolute errors for each sample
+        across all models, where the sample was part of the test set.
 
         Returns
         -------
         <pandas dataframe>
+        Data matrix. Rows represent objects, columns represent generated variables. 
+        The first column denotes how often the object was part of the test set, the second column shows the average absolute error.
+
 
         """
         if not hasattr(self, '_best_C'):
@@ -1744,7 +1746,7 @@ class RENT_Regression(RENT_Base):
     def get_object_errors(self):
         """
         Absolute errors for samples which were at least once in a test-set among ``K``
-        models
+        models.
 
         Returns
         -------
@@ -1759,12 +1761,12 @@ class RENT_Regression(RENT_Base):
     def plot_object_errors(self, object_id, binning='auto', lower=0,
                                   upper=100, kde=False, norm_hist=False):
         """
-        Histograms of absolute errors.
+        Histograms of absolute errors from ``get_object_errors()``.
 
         PARAMETERS
         ----------
         object_id : <list of int or str>
-            Samples/Objects whos histograms shall be plotted. Type depends on the index format of the dataframe.
+            Objects whos histograms shall be plotted. Type depends on the index format of the dataframe.
         lower : <float>
             Lower bound of the x-axis. Default ``lower=0``.
         upper : <float>

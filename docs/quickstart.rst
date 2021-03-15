@@ -7,7 +7,10 @@ a unique and randomly selected subset from the full training data. From these mo
 feature that contain rich information on the stability of feature selection and from which several adjustable classification criteria may be
 defined.
 
-More details are provided here: [RENT - Repeated Elastic Net Technique for Feature Selection](https://arxiv.org/abs/2009.12780)
+It is recommended to read the arXiv manuscript `RENT - Repeated Elastic Net Technique for Feature Selection`_, which provides a deeper explanation of the method and is helpful to improve the 
+understanding of RENT and the available analysis methods. 
+
+.. _RENT - Repeated Elastic Net Technique for Feature Selection: https://arxiv.org/abs/2009.12780v2
 
 Requirements
 ------------
@@ -40,7 +43,7 @@ The source code is available at the `RENT GitHub repository`_.
 
 UML-Diagram
 -----------
-The UML-diagram provides an overview on the class-structure of the present RENT implementation.
+The UML-diagram provides an overview on the class-structure of the RENT implementation.
 
 .. image:: RENT_UML.png
 
@@ -60,18 +63,10 @@ First, we load and prepare the data. Then we initialize a RENT classification mo
    
     import pandas as pd
     from RENT import RENT
-    from sklearn.datasets import load_breast_cancer
-    from sklearn.model_selection import train_test_split
 
     # Load dataset 
-    wisconsin = load_breast_cancer()
-    data = pd.DataFrame(wisconsin.data)
-    data.columns = wisconsin.feature_names
-    target = wisconsin.target
-
-    # We split the dataset into a separate train and (unseen) test dataset. 
-    # Thus, we can evaluate a model build on the selected features, afterwards (see Jupyter notebook for classification).
-    train_data, test_data, train_labels, test_labels = train_test_split(data, target, random_state=0, shuffle=True)
+    train_data = pd.read_csv("data/wisconsin_train.csv").iloc[:,1:]
+    train_labels = pd.read_csv("data/wisconsin_train_labels.csv").iloc[:,1].values
 
     # Build RENT model
     # Define a range of regularisation parameters C for elastic net. A minimum of at least one value is required.

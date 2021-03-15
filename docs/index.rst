@@ -1,11 +1,13 @@
 Welcome to the RENT documentation
 =================================
+.. image:: Logo.png
+   :width: 350
+   :align: right
 
 .. toctree::
    :maxdepth: 2
    :caption: Content
 
-   readme
    quickstart
    baseclass
    binary_classification

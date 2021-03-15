@@ -1,7 +1,7 @@
 RENT base functions
 ==============================
 
-Methods and functions presented, are applicable for both classes, RENT-Classification and RENT-Regression.
+RENT base is an abstract class and contains the constructor of RENT. Furthermore, the class comprises methods and functions that are applicable for both classes, RENT-Classification and RENT-Regression.
 
 .. autoclass:: RENT.RENT.RENT_Base
    :members:

@@ -4,7 +4,7 @@ tags:
 - Python
 - feature selection
 authors:
-- name: Anna Jenul^[corresponding author]
+- name: Anna Jenul
 orcid: 0000-0002-6919-3483
 affiliation: 1
 - name: Stefan Schrunner
@@ -18,11 +18,12 @@ affiliation: 1
   affiliation: 1
 affiliations:
 - name: Department of Data Science, Norwegian University of Life Sciences
-index: 1
--name: Department of Physics
-index: 2
+  index: 1
+-name: Department of Physics, Norwegian University of Life Sciences
+  index: 2
 date: 10.03.2021
 bibliography: paper.bib
+
 ---
 
 # Summary and Statement of Need

@@ -1,21 +1,21 @@
 ---
 title: 'RENT: A Python package for repeated elastic net feature selection'
 tags:
-- Python
-- feature selection
+  - Python
+  - feature selection
 authors:
-- name: Anna Jenul
-orcid: 0000-0002-6919-3483
-affiliation: 1
-- name: Stefan Schrunner
-  orcid: 0000-0003-1327-4855
-  affiliation: 1
-- name: Bao Ngoc Huynh
-  orcid: 0000-0001-5210-132X
-  affiliation: 2
-- name: Oliver Tomic
-  orcid: 0000-0003-1595-9962
-  affiliation: 1
+  - name: Anna Jenul
+    orcid: 0000-0002-6919-3483
+    affiliation: 1
+  - name: Stefan Schrunner
+    orcid: 0000-0003-1327-4855
+    affiliation: 1
+  - name: Bao Ngoc Huynh
+    orcid: 0000-0001-5210-132X
+    affiliation: 2
+  - name: Oliver Tomic
+    orcid: 0000-0003-1595-9962
+    affiliation: 1
 affiliations:
 - name: Department of Data Science, Norwegian University of Life Sciences
   index: 1

@@ -264,7 +264,7 @@ class RENT_Base(ABC):
         self._best_l1_ratio = self._combination.index[np.nanmax(best_row)]
         self._best_C = self._combination.columns[np.nanmin(best_col)]
 
-    def selectFeatures(self, tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975):
+    def select_features(self, tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975):
         """
         Selects features based on the cutoff values for tau_1_cutoff, tau_2_cutoff and tau_3_cutoff.
 
@@ -333,7 +333,7 @@ class RENT_Base(ABC):
             Matrix where rows represent selection criteria and columns represent features.
         """
         if not hasattr(self, '_summary_df'):
-            sys.exit('Run selectFeatures() first!')
+            sys.exit('Run select_features() first!')
         return self._summary_df
 
     def get_weight_distributions(self, binary = False):
@@ -463,7 +463,7 @@ class RENT_Base(ABC):
         Barplot of tau_1 value for each feature.
         """
         if not hasattr(self, '_perc'):
-            sys.exit('Run selectFeatures() first!')
+            sys.exit('Run select_features() first!')
 
         plt.figure(figsize=(10, 7))
         (markers, stemlines, baseline) = plt.stem(self._perc,\
@@ -535,7 +535,7 @@ class RENT_Base(ABC):
         if problem not in ['class', 'regression']:
             sys.exit(" 'problem' must be either 'class' or 'regression' ")
         if not hasattr(self, '_sel_var'):
-            sys.exit('Run selectFeatures() first!')
+            sys.exit('Run select_features() first!')
         if not hasattr(self, '_incorrect_labels'):
             sys.exit('Run get_summary_objects() first!')
         if problem == "regression" and cl != "continuous":
@@ -756,7 +756,7 @@ class RENT_Base(ABC):
             Significance level for the `t`-test. Default ``alpha=0.05``.
         """
         if not hasattr(self, '_sel_var'):
-            sys.exit('Run selectFeatures() first!')
+            sys.exit('Run select_features() first!')
 
         if self._poly != 'OFF':
             test_data = pd.DataFrame(self._polynom.fit_transform(test_data))

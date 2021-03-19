@@ -10,7 +10,7 @@ affiliation: 1
 - name: Stefan Schrunner
 orcid: 0000-0003-1327-4855
 affiliation: 1
-- name: nogc
+- name: Bao Ngoc Huynh
 orcid: 0000-0001-5210-132X
 affiliation: 2
 - name: Oliver Tomic

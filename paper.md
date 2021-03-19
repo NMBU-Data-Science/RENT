@@ -8,14 +8,14 @@ authors:
 orcid: 0000-0002-6919-3483
 affiliation: 1
 - name: Stefan Schrunner
-orcid: 0000-0003-1327-4855
-affiliation: 1
+  orcid: 0000-0003-1327-4855
+  affiliation: 1
 - name: Bao Ngoc Huynh
-orcid: 0000-0001-5210-132X
-affiliation: 2
+  orcid: 0000-0001-5210-132X
+  affiliation: 2
 - name: Oliver Tomic
-orcid: 0000-0003-1595-9962
-affiliation: 1
+  orcid: 0000-0003-1595-9962
+  affiliation: 1
 affiliations:
 - name: Department of Data Science, Norwegian University of Life Sciences
 index: 1
@@ -23,7 +23,6 @@ index: 1
 index: 2
 date: 10.03.2021
 bibliography: paper.bib
-
 ---
 
 # Summary and Statement of Need

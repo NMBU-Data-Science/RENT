@@ -17,9 +17,9 @@ authors:
     orcid: 0000-0003-1595-9962
     affiliation: 1
 affiliations:
-- name: Department of Data Science, Norwegian University of Life Sciences
-  index: 1
--name: Department of Physics, Norwegian University of Life Sciences
+ - name: Department of Data Science, Norwegian University of Life Sciences
+   index: 1
+ - name: Department of Physics, Norwegian University of Life Sciences
   index: 2
 date: 10.03.2021
 bibliography: paper.bib

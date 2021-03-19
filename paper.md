@@ -20,9 +20,10 @@ affiliations:
  - name: Department of Data Science, Norwegian University of Life Sciences
    index: 1
  - name: Department of Physics, Norwegian University of Life Sciences
-  index: 2
+   index: 2
 date: 10.03.2021
 bibliography: paper.bib
+
 ---
 
 # Summary and Statement of Need

@@ -46,6 +46,7 @@ UML-Diagram
 The UML-diagram provides an overview on the class-structure of the RENT implementation.
 
 .. image:: RENT_UML.png
+   :scale: 50 %
 
 
 Testing

@@ -12,7 +12,10 @@ More details are provided here: [RENT - Repeated Elastic Net Technique for Featu
 Example
 -------
 
-We provide an example Jupyter-notebook for both [classification](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Classification_example.ipynb) and [regression](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Regression_example.ipynb) on how to use RENT.
+Below are links to Jupyter-notebooks that illustrate how to use RENT for	
+
+* [classification](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Classification_example.ipynb) 
+* [regression](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Regression_example.ipynb)
 
 
 

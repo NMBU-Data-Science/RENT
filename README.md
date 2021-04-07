@@ -34,5 +34,5 @@ Make sure that Python 3.5 or higher is installed. A convenient way to install Py
 Documentation
 -------------
 
-A webhook to [ReadTheDocs](https://rent.readthedocs.io/en/latest/) is available. The documentation contains detailed explanation of methods and their inputs.
+Documentation is available at [ReadTheDocs](https://rent.readthedocs.io/en/latest/). It provides detailed explanation of methods and their inputs.
 

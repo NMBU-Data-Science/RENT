@@ -4,6 +4,8 @@ RENT
 .. image:: https://img.shields.io/github/license/NMBU-Data-Science/RENT
     :target: https://github.com/NMBU-Data-Science/RENT/blob/master/LICENSE
 
+.. image:: https://img.shields.io/github/license/NMBU-Data-Science/RENT   :alt: GitHub license   :target: https://github.com/NMBU-Data-Science/RENT/blob/master/LICENSE
+
 
 RENT (Repeated Elastic Net Technique) is a feature selection method for binary classification and regression problems. At its core
 RENT trains an ensemble of unique models using regularized elastic net to select features. Each model in the ensemble is trained with

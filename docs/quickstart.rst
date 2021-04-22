@@ -68,6 +68,9 @@ or for the regression
 
 After testing is finished, pytest should report that none of tests failed. 
 
+.. warning::
+        You may get some warnings.
+
 
 Classification Example
 ----------------------

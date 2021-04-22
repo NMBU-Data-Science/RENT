@@ -52,7 +52,21 @@ The UML-diagram provides an overview on the class-structure of the RENT implemen
 Testing
 -------
 
-To be implemented.
+The correctness of the results may checked using the test provided in the test folder.
+
+After cloning the repository to your disk, at the command line navigate to the test folder. The code below shows an example of how to run the test for classification.
+
+.. code-block:: bash
+        
+        pytest -v test_classification.py 
+
+or for the regression
+
+.. code-block:: bash
+        
+        pytest -v test_regression.py 
+
+After testing is finished, pytest should report that none of tests failed. 
 
 
 Classification Example

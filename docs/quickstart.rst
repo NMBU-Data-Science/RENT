@@ -68,8 +68,9 @@ or for the regression
 
 After testing is finished, pytest should report that none of tests failed. 
 
->**⚠ WARNING: Aliens are coming.**
->A description of the colour, smell and dangerous behaviour of the aliens.
+
+.. note::
+        This is a note.
 
 
 Classification Example

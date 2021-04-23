@@ -52,9 +52,11 @@ The UML-diagram provides an overview on the class-structure of the RENT implemen
 Testing
 -------
 
-The correctness of the results may checked using the test provided in the test folder.
+The correctness of the results may checked using the test provided in the `tests`_ folder.
 
-After cloning the repository to your disk, at the command line navigate to the test folder. The code below shows an example of how to run the test for classification.
+.. _tests: https://github.com/NMBU-Data-Science/RENT/tree/master/tests
+
+After cloning the repository to your disk, at the command line navigate to the test folder. The code below shows an example of how to run the tests for classification.
 
 .. code-block:: bash
         

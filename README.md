@@ -1,7 +1,7 @@
 RENT
 ====
 
-![RENT Logo](/images/RENT_logo.png){:height="50%" width="50%"}
+<img src="/images/RENT_logo.png" width="200"/>
 
 RENT (Repeated Elastic Net Technique) is a feature selection method for binary classification and regression problems. At its core
 RENT trains an ensemble of unique models using regularized elastic net to select features. Each model in the ensemble is trained with

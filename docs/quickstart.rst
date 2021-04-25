@@ -72,7 +72,7 @@ After testing is finished, pytest should report that none of tests failed.
 
 
 .. note::
-    In the test RENT is applied to the Wisconsin breast cancer dataset. During the test, there will appear convergence warnings because the maximum number of         iterations will be reached. The same is true for a runtime warning due to a true divide. 
+    In the test RENT is applied to the Wisconsin breast cancer dataset (for classification) and an artificial dataset (for regression). During the test, there will appear convergence warnings because the maximum number of         iterations will be reached. The same is true for a runtime warning due to a true divide. 
 
 
 Classification Example

@@ -27,14 +27,64 @@ from sklearn.metrics import f1_score, precision_score, recall_score, \
 from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
-
 from scipy.stats import t
 
 
 class RENT_Base(ABC):
     """
     The constructor initializes common variables of RENT_Classification and RENT_Regresson.
-    The inputs are described in detail in RENT for binary classification and RENT for regression, respectively.
+    Initializations that are either only for classification or regression are described in detail in RENT for binary classification and RENT for regression, respectively.
+    
+    PARAMETERS
+    -----
+
+    data: <numpy array> or <pandas dataframe>
+        Dataset on which feature selection shall be performed.
+
+    target: <numpy array> or <pandas dataframe>
+        Response variable of data.
+
+    feat_names : <list>
+        List holding feature names. Preferably a list of string values. If empty, feature names will be generated automatically. Default: ``feat_names=[]``.
+    
+    C : <list of int or float values>
+        List with regularisation parameters for ``K`` models. The lower,
+        the stronger the regularization is. Default: ``C=[1,10]``.
+
+    l1_ratios : <list of int or float values>
+        List holding ratios between l1 and l2 penalty. Values must be in [0,1]. For
+        pure l2 use 0, for pure l1 use 1. Default: ``l1_ratios=[0.6]``.
+
+    autoEnetParSel : <boolean>
+        Cross-validated elastic net hyperparameter selection.
+            - ``autoEnetParSel=True`` : peform a cross-validation pre-hyperparameter search, such that RENT runs only with one hyperparamter setting.
+            - ``autoEnetParSel=False`` : perform RENT with each combination of ``C`` and ``l1_ratios``. Default: ``autoEnetParSel=True``.
+        
+    poly : <str> 
+        Create non-linear features. Default: ``poly='OFF'``.
+            - ``poly='OFF'`` : no feature interaction.
+            - ``poly='ON'`` : feature interaction and squared features (2-polynoms).
+            - ``poly='ON_only_interactions'`` : only feature interactions, no squared features.
+
+    testsize_range : <tuple float>
+         Range of random proportion of dataset to include in test set,
+         low and high are floats between 0 and 1.
+         Testsize can be fixed by setting low and high to the same value. Default: ``testsize_range=(0.2, 0.6)``.
+
+    K : <int>
+        Number of unique train-test splits. Default ``K=100``.
+
+    scale : <boolean>
+        Scale each of the K train datasets. Default ``scale=True``.
+
+    random_state : <None or int>
+        Set a random state to reproduce your results. Default: ``random_state=None``.
+            - ``random_state=None`` : no random seed. 
+            - ``random_state={0,1,2,...}`` : random seed set.
+        
+    verbose : <int>
+        Track the train process if value > 1. If ``verbose = 1``, only the overview
+        of RENT input will be shown. Default: ``verbose=0``.
     """
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
@@ -185,7 +235,7 @@ class RENT_Base(ABC):
         The number of models using the same hyperparamters is ``K``.
         Otherwise, if the best parameter combination is selected with cross-validation, only ``K`` models are trained.
         For each model elastic net regularisation is applied for feature selection. 
-        Internally, train calls the ``run_parallel()`` function for classification 
+        Internally, ``train()`` calls the ``run_parallel()`` function for classification 
         or regression, respectively.
         """
         np.random.seed(0)
@@ -342,9 +392,10 @@ class RENT_Base(ABC):
         
         PARAMETERS
         ----------
-            -``binary=True`` : binary matrix where entry is 1 for each
-                    weight unequal to 0.
-            -``binary=False`` : original weight matrix.
+        binary : <boolean>
+            Default: ``binary=False``.
+                - ``binary=True`` : binary matrix where entry is 1 for each weight unequal to 0.
+                - ``binary=False`` : original weight matrix.
 
         RETURNS
         -------
@@ -407,13 +458,13 @@ class RENT_Base(ABC):
         -------
         <list> of <pandas dataframes>
             - dataFrame_1: average scores for predictive performance. The higher the score, the better the parameter combination. 
-            - dataFrame_2: average percentage of how many feature weights were set to zero. The higher the average percentage, the stronger the feature selection with the corresponding paramter combination.
-            - dataFrame_3: harmonic means between dataFrame_1 and dataFrame_2. The parameter combination with the highest harmonic mean is selected.
+            - dataFrame_2: average percentage of how many feature weights are set to zero. The higher the average percentage, the stronger the feature selection with the corresponding paramter combination.
+            - dataFrame_3: harmonic means between normalized dataFrame_1 and normalized dataFrame_2. The parameter combination with the highest harmonic mean is selected.
         """
         if self._autoEnetParSel == True:
             return self._scores_df_cv, self._zeroes_df_cv, self._combination_cv
         else:
-            print("autoEnetParSel=False - parameters have not been selected with Cross Validation.")
+            print("autoEnetParSel=False - parameters have not been selected with cross-validation.")
 
     def get_enet_params(self):
         """
@@ -435,12 +486,12 @@ class RENT_Base(ABC):
         
         RETURNS
         -------
-        <nummeric value>
+        <numeric value>
             Time.
         """
         return self._runtime
 
-    def set_enet_params(self, C, l1):
+    def set_enet_params(self, C, l1_ratio):
         """
         Set hyperparameter combination of ``C`` and ``l1_ratio``, that is used for analyses. Only
         useful if ``autoEnetParSel=False``.
@@ -449,14 +500,14 @@ class RENT_Base(ABC):
         ----------
         C: <float>
             Regularization parameter.
-        l1: <float>
+        l1_ratio: <float>
             l1 ratio with value in [0,1]. 
         """
         
-        if (C not in self._C) | (l1 not in self._l1_ratios):
-            sys.exit('autoEnetParSel was True - no weights calculated for this combination')
+        if (C not in self._C) | (l1_ratio not in self._l1_ratios):
+            sys.exit('No weights calculated for this combination!')
         self._best_C = C
-        self._best_l1_ratio = l1
+        self._best_l1_ratio = l1_ratio
 
     def plot_selection_frequency(self):
         """
@@ -497,7 +548,7 @@ class RENT_Base(ABC):
                         hoggorm_plots=[1,2,3,4,6], sel_vars=True):
         """
         PCA analysis. For classification problems, PCA can be computed either on a single class separately or on both classes. Different coloring possibilities for the scores are provided.
-        Besides scores, loadings, correlation Loadings, biplot, and explained variance plots are available. 
+        Besides scores, loadings, correlation loadings, biplot, and explained variance plots are available. 
 
         Parameters
         ----------
@@ -520,7 +571,7 @@ class RENT_Base(ABC):
         hoggorm : <boolean>
             To not use plots from hoggormplot package, set ``hoggorm=False``. Default: ``hoggorm=True``.
         hoggorm_plots : <list>
-            Which plots from hoggormplot shall be plotted. Only plots that are relevant for RENT are possible options. ``hoggorm=True`` must be set. Default: ``hoggorm_plots=[1,2,3,4,6]``.
+            Choose which plots from hoggormplot are plotted. Only plots that are relevant for RENT are possible options. ``hoggorm=True`` must be set. Default: ``hoggorm_plots=[1,2,3,4,6]``.
                 - 1: scores plot
                 - 2: loadings plot
                 - 3: correlation loadings plot
@@ -793,7 +844,7 @@ class RENT_Base(ABC):
         print("VS2: p-value for score from permutation of test labels: ", 
               p_value_VS2)
         print("VS2: heuristic p-value (how many scores are higher"+
-              " than the RENT score): ", p_value_VS2)
+              " than the RENT score): ", heuristic_p_value_VS2)
         if p_value_VS2 <= alpha:
             print('With a significancelevel of ', alpha, ' H0 is rejected.')
         else:
@@ -866,11 +917,7 @@ class RENT_Base(ABC):
 
 class RENT_Classification(RENT_Base):
     """
-    This class carries out repeated elastic net feature selection on a given
-    binary classification dataset. Feature selection is done on
-    multiple train test splits. The user can initiate interactions between
-    features that are included in the dataset and as such introduce
-    non-linearities.
+    This class carries out RENT on a given binary classification dataset. 
 
     PARAMETERS
     -----
@@ -893,8 +940,8 @@ class RENT_Classification(RENT_Base):
         pure l2 use 0, for pure l1 use 1. Default: ``l1_ratios=[0.6]``.
 
     autoEnetParSel : <boolean>
-        Cross validated elastic net hyperparameter selection.
-            - ``autoEnetParSel=True`` : peform a cross validation pre-hyperparameter search, s.t. RENT runs only with one hyperparamter setting.
+        Cross-validated elastic net hyperparameter selection.
+            - ``autoEnetParSel=True`` : peform a cross-validation pre-hyperparameter search, such that RENT runs only with one hyperparamter setting.
             - ``autoEnetParSel=False`` : perform RENT with each combination of ``C`` and ``l1_ratios``. Default: ``autoEnetParSel=True``.
         
     poly : <str> 
@@ -904,7 +951,7 @@ class RENT_Classification(RENT_Base):
             - ``poly='ON_only_interactions'`` : only feature interactions, no squared features.
 
     testsize_range : <tuple float>
-         Range of random proportion of dataset toinclude in test set,
+         Range of random proportion of dataset to include in test set,
          low and high are floats between 0 and 1.
          Testsize can be fixed by setting low and high to the same value. Default: ``testsize_range=(0.2, 0.6)``.
 
@@ -928,8 +975,8 @@ class RENT_Classification(RENT_Base):
     
     random_state : <None or int>
         Set a random state to reproduce your results. Default: ``random_state=None``.
-        - ``random_state=None`` : no random seed. 
-        - ``random_state={0,1,2,...}`` : random seed set.
+            - ``random_state=None`` : no random seed. 
+            - ``random_state={0,1,2,...}`` : random seed set.
         
     verbose : <int>
         Track the train process if value > 1. If ``verbose = 1``, only the overview
@@ -971,7 +1018,7 @@ class RENT_Classification(RENT_Base):
                         n_splits=5,
                         testsize_range=(0.25,0.25)):
         """
-        Preselect best `C` and `l1 ratio` with Cross Validation.
+        Preselect best `C` and `l1 ratio` with cross-validation.
 
         PARAMETERS
         ----------
@@ -983,10 +1030,10 @@ class RENT_Classification(RENT_Base):
             List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
             pure l2 use 0, for pure l1 use 1.
         n_splits : <int>
-            Number of cross validation folds. Default: ``n_splits=5``.
+            Number of cross-validation folds. Default: ``n_splits=5``.
             
         testsize_range: <tuple float>
-            Range of random proportion of dataset toinclude in test set,
+            Range of random proportion of dataset to include in test set,
             low and high are floats between 0 and 1. Default: ``testsize_range=(0.2, 0.6)``.
             Testsize can be fixed by setting low and high to the same value.
 
@@ -1211,8 +1258,8 @@ class RENT_Classification(RENT_Base):
         RETURNS
         -------
         <pandas dataframe>
-        Data matrix. Rows represent objects, columns represent generated variables. The first column denotes how often the object was part of the test set, the second column reveals the true class
-        of the object, the third column indicates how often the object was classified incorrectly and the fourth column shows the corresponding percentage of incorrectness.
+            Data matrix. Rows represent objects, columns represent generated variables. The first column denotes how often the object was part of the test set, the second column reveals the true class
+            of the object, the third column indicates how often the object was classified incorrectly and the fourth column shows the corresponding percentage of incorrectness.
 
         """
         if not hasattr(self, '_best_C'):
@@ -1254,7 +1301,7 @@ class RENT_Classification(RENT_Base):
         RETURNS
         -------
         <pandas dataframe>
-        Matrix, where rows represent objects and columns represent logistic regression 
+            Matrix, where rows represent objects and columns represent logistic regression 
             probability outputs (probability of belonging to class 1).
 
         """
@@ -1282,7 +1329,7 @@ class RENT_Classification(RENT_Base):
         PARAMETERS
         ----------
         object_id : <list of int or str>
-            Objects whos histograms shall be plotted. 
+            Objects whoes histograms shall be plotted. 
             Type depends on the index format of the dataframe.
         lower : <float>
             Lower bound of the x-axis. Default: ``lower=0``.
@@ -1437,11 +1484,7 @@ class RENT_Classification(RENT_Base):
         
 class RENT_Regression(RENT_Base):
     """
-    This class carries out repeated elastic net feature selection on a given
-    regressionn dataset. Feature selection is done on
-    multiple train test splits. The user can initiate interactions between
-    features that are included in the dataset and as such introduce
-    non-linearities.
+    This class carries out RENT on a given regression dataset. 
 
     PARAMETERS
     -----
@@ -1464,8 +1507,8 @@ class RENT_Regression(RENT_Base):
         pure l2 use 0, for pure l1 use 1. Default: ``l1_ratios=[0.6]``.
 
     autoEnetParSel : <boolean>
-        Cross validated elastic net hyperparameter selection.
-            - ``autoEnetParSel=True`` : peform a cross validation pre-hyperparameter search, s.t. RENT runs only with one hyperparamter setting.
+        Cross-validated elastic net hyperparameter selection.
+            - ``autoEnetParSel=True`` : peform a cross-validation pre-hyperparameter search, such that RENT runs only with one hyperparamter setting.
             - ``autoEnetParSel=False`` : perform RENT with each combination of ``C`` and ``l1_ratios``. Default: ``autoEnetParSel=True``.
         
     poly : <str> 
@@ -1475,7 +1518,7 @@ class RENT_Regression(RENT_Base):
             - ``poly='ON_only_interactions'`` : only feature interactions, no squared features.
 
     testsize_range : <tuple float>
-         Range of random proportion of dataset toinclude in test set,
+         Range of random proportion of dataset to include in test set,
          low and high are floats between 0 and 1.
          Testsize can be fixed by setting low and high to the same value. Default: ``testsize_range=(0.2, 0.6)``.
 
@@ -1487,8 +1530,8 @@ class RENT_Regression(RENT_Base):
 
     random_state : <None or int>
         Set a random state to reproduce your results. Default: ``random_state=None``.
-        - ``random_state=None`` : no random seed. 
-        - ``random_state={0,1,2,...}`` : random seed set.
+            - ``random_state=None`` : no random seed. 
+            - ``random_state={0,1,2,...}`` : random seed set.
         
     verbose : <int>
         Track the train process if value > 1. If ``verbose = 1``, only the overview
@@ -1496,12 +1539,12 @@ class RENT_Regression(RENT_Base):
 
     RETURNS
     ------
-    class
+    <class>
         A class that contains the RENT regression model.
     """
 
-    def __init__(self, data, target, feat_names=[], autoEnetParSel=True,
-                 C=[1,10], l1_ratios = [0.6],
+    def __init__(self, data, target, feat_names=[], 
+                 C=[1,10], l1_ratios = [0.6], autoEnetParSel=True,
                  poly='OFF', testsize_range=(0.2, 0.6),
                  K=100, scale=True, random_state = None, verbose = 0):
 
@@ -1516,7 +1559,7 @@ class RENT_Regression(RENT_Base):
                     n_splits=5,
                     testsize_range=(0.25,0.25)):
         """
-        Preselect best `C` and `l1 ratio` with Cross Validation.
+        Preselect best `C` and `l1 ratio` with Cross-validation.
 
         PARAMETERS
         ----------
@@ -1528,18 +1571,18 @@ class RENT_Regression(RENT_Base):
             List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
             pure l2 use 0, for pure l1 use 1.
         n_splits : <int>
-            Number of cross validation folds. Default ``n_splits=5``.
+            Number of cross-validation folds. Default ``n_splits=5``.
             
         testsize_range: <tuple float>
-            Range of random proportion of dataset toinclude in test set,
+            Range of random proportion of dataset to include in test set,
             low and high are floats between 0 and 1. Default ``testsize_range=(0.2, 0.6)``.
             Testsize can be fixed by setting low and high to the same value.
 
         RETURNS
         -------
         <tuple> 
-        First entry: suggested `C` parameter.
-        Second entry: suggested `l1 ratio`.
+            First entry: suggested `C` parameter.
+            Second entry: suggested `l1 ratio`.
 
         """
         skf = KFold(n_splits=n_splits, random_state=self._random_state, shuffle=True)
@@ -1705,8 +1748,8 @@ class RENT_Regression(RENT_Base):
         Returns
         -------
         <pandas dataframe>
-        Data matrix. Rows represent objects, columns represent generated variables. 
-        The first column denotes how often the object was part of the test set, the second column shows the average absolute error.
+            Data matrix. Rows represent objects, columns represent generated variables. 
+            The first column denotes how often the object was part of the test set, the second column shows the average absolute error.
 
 
         """
@@ -1751,7 +1794,7 @@ class RENT_Regression(RENT_Base):
         Returns
         -------
         <pandas dataframe>
-        Matrix. Rows represent objects, columns represent genrated variables.
+            Matrix. Rows represent objects, columns represent genrated variables.
 
         """
         if not hasattr(self, '_histogram_data'):
@@ -1766,7 +1809,7 @@ class RENT_Regression(RENT_Base):
         PARAMETERS
         ----------
         object_id : <list of int or str>
-            Objects whos histograms shall be plotted. Type depends on the index format of the dataframe.
+            Objects whoes histograms shall be plotted. Type depends on the index format of the dataframe.
         lower : <float>
             Lower bound of the x-axis. Default ``lower=0``.
         upper : <float>

@@ -2,7 +2,7 @@
 
 '''
 
-This is a copy of https://github.com/nogueirs/JMLR2018/tree/master/python/stability.
+This is an unchanged copy of https://github.com/nogueirs/JMLR2018/tree/master/python/stability.
 The script is included in the RENT GitHub repository, to measure the stability of RENT.
 The underlying paper: "On the Stability of Feature Selection.". Nogueira, Sechidis and Brown. Journal of Machine Learning Reasearch (JMLR). 2017.
 

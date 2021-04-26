@@ -18,6 +18,7 @@ Below are links to Jupyter-notebooks that illustrate how to use RENT for
 
 * [classification](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Classification_example.ipynb) 
 * [regression](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Regression_example.ipynb)
+* [hyperparameter search](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Extensive_Hyperparameter_Search.ipynb)
 
 
 
@@ -26,7 +27,7 @@ Requirements
 Make sure that Python 3.5 or higher is installed. A convenient way to install Python and many useful packages for scientific computing is to use the [Anaconda Distribution](https://www.anaconda.com/products/individual)
 
 * numpy >= 1.11.3
-* pandas >= 1.0.5
+* pandas >= 1.2.3
 * scikit-learn >= 0.22
 * scipy >= 1.5.0
 * hoggorm >= 0.13.3

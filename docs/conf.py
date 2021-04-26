@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = u'RENT'
-copyright = u'2017-2020, Oliver Tomic'
+copyright = u'2020-2021, Anna Jenul'
 author = 'Anna Jenul'
 
 # The full version, including alpha/beta/rc tags

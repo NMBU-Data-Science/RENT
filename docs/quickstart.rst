@@ -19,7 +19,7 @@ Make sure that Python 3.5 or higher is installed. A convenient way to install Py
 .. _Anaconda distribution: https://www.anaconda.com/products/individual
 
     - numpy >= 1.11.3
-    - pandas >= 1.0.5
+    - pandas >= 1.2.3
     - scikit-learn >= 0.22
     - scipy >= 1.5.0
     - hoggorm >= 0.13.3
@@ -31,7 +31,7 @@ Make sure that Python 3.5 or higher is installed. A convenient way to install Py
 
 Documentation
 -------------
-The following Jupyter notebooks provides a `classification example <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Classification_example.ipynb>`_ and a `regression example <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Regression_example.ipynb>`_, illustrating the RENT workflow.
+The following Jupyter notebooks provide a `classification example <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Classification_example.ipynb>`_ and a `regression example <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Regression_example.ipynb>`_, illustrating the RENT workflow. Further, the Jupyter notebook about `extensive hyperparameter search <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Extensive_Hyperparameter_Search.ipynb>`_ illustrates how elastic net hyperparameter search can be embedded in RENT training.
 
 
 RENT repository on GitHub
@@ -52,7 +52,7 @@ The UML-diagram provides an overview on the class-structure of the RENT implemen
 Testing
 -------
 
-The correctness of the results may checked using the test provided in the `tests`_ folder.
+The correctness of the results may be checked using the test provided in the `tests`_ folder.
 
 .. _tests: https://github.com/NMBU-Data-Science/RENT/tree/master/tests
 
@@ -77,8 +77,10 @@ After testing is finished, pytest should report that none of tests failed.
 
 Classification Example
 ----------------------
-The following python example illustrates RENT on the Wisconsin breast cancer (classification) dataset, available on scikit-learn.
-First, we load and prepare the data. Then we initialize a RENT classification model, train it and select features. A
+The following python example illustrates RENT on the Wisconsin breast cancer (classification) dataset, available from scikit-learn.
+First, we load and prepare the data. Then we initialize a RENT classification model, train it and select features. This example shows
+how to select features with RENT. For more examples including graphics and feature selection post-hoc analysis have a look at the 
+example notebooks on the RENT GitHub repository.
 
 .. code-block:: python
    
@@ -90,10 +92,12 @@ First, we load and prepare the data. Then we initialize a RENT classification mo
     train_labels = pd.read_csv("data/wisconsin_train_labels.csv").iloc[:,1].values
 
     # Build RENT model
-    # Define a range of regularisation parameters C for elastic net. A minimum of at least one value is required.
+    # Define a range of regularisation parameters C for elastic net. 
+    # A minimum of at least one value is required.
     my_C_params = [0.1, 1, 10]
 
-    # Define a reange of l1-ratios for elastic net.  A minimum of at least one value is required.
+    # Define a reange of l1-ratios for elastic net.  
+    # A minimum of at least one value is required.
     my_l1_ratios = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
 
     # Define setting for RENT
@@ -115,14 +119,18 @@ First, we load and prepare the data. Then we initialize a RENT classification mo
     model.train()
 
     # Actual feature selection step
-    model.selectFeatures(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
+    selected_features = model.selectFeatures(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
+    print("selected features: ", selected_features)
+    selected features: [7, 20, 21, 22, 24, 27]
 
 
 Regression Example
 ----------------------
 The following python example illustrates RENT on a regression dataset, generated via the ``make_regression()`` function, offered in
 scikit-learn.
-First, we load and prepare the data. Then we initialize a RENT classification model, train it and select features.
+First, we load and prepare the data. Then we initialize a RENT classification model, train it and select features. 
+This example shows how to select features with RENT. For more examples including graphics and feature selection post-hoc 
+analysis have a look at the example notebooks on the RENT GitHub repository.
 
 .. code-block:: python
    
@@ -138,13 +146,19 @@ First, we load and prepare the data. Then we initialize a RENT classification mo
     my_feat_names = ['f{0}'.format(x+1) for x in range(len(my_data.columns))]
 
     # We split the dataset into a separate train and (unseen) test dataset. 
-    # Thus, we can evaluate a model build on the selected features, afterwards (see Jupyter notebook for regression).
-    train_data, test_data, train_labels, test_labels = train_test_split(my_data, my_target, test_size=0.3, random_state=0)
+    # The test dataset might be used to evaluate a model, that is build on 
+    # the features selected with RENT. This is not shown in this example.
+    train_data, test_data, train_labels, test_labels = train_test_split(my_data, 
+                                                                        my_target, 
+                                                                        test_size=0.3, 
+                                                                        random_state=0)
 
     # Build RENT model
-    # Define a range of regularisation parameters C for elastic net. A minimum of at least one value is required.
+    # Define a range of regularisation parameters C for elastic net. 
+    # A minimum of at least one value is required.
     my_C_params = [0.1, 1, 10]
-    # Define a reange of l1-ratios for elastic net.  A minimum of at least one value is required.
+    # Define a reange of l1-ratios for elastic net.  
+    # A minimum of at least one value is required.
     my_l1_ratios = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
 
     model = RENT.RENT_Regression(data=train_data, 
@@ -163,4 +177,7 @@ First, we load and prepare the data. Then we initialize a RENT classification mo
     model.train()
 
     # Actual feature selection step
-    model.selectFeatures(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
+    selected_features = model.selectFeatures(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
+    selected_features = model.selectFeatures(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
+    print("selected features: ", selected_features)
+    selected features: [0, 1, 2, 4, 5, 6, 7, 8, 10, 11, 13, 14, 16, 17, 19, 835]

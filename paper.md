@@ -40,8 +40,11 @@ The major steps of feature selection are performed using the methods `select_fea
 
 In addition to feature selection, `get_object_summary()` offers a detailed summary about prediction accuracies for the training objects. `plot_object_probabilites()` plots histogram for class probabilities for each training object for classification problems. Those histograms provide additional information on prediction accuracies of training objects. Further, for regression problems, `plot_object_errors()` relies on the same concept with histograms about the average absolute error. `plot_object_PCA()` performs principal component analysis and offers deeper insight into the properties of training objects and their relation to RENT features. Principal components and plots are generated with the `hoggorm` and `hoggormplot` packages [@Tomic:2019].
 
-# Ongoing Research and publication
-The manuscript RENT - Repeated Elastic Net Technique for Feature Selection is currently under review. Besides, the method and the package are used in
+# Ongoing Research and Dissemination
+The manuscript RENT - Repeated Elastic Net Technique for Feature Selection is currently under review. Further, the method and the package are used in
 different master thesis projects at NMBU, mainly in the field of healthcare data analysis.
+
+# Acknowledgements
+In special we thank Runar Helin for proofreading of the documentation.
 
 # References

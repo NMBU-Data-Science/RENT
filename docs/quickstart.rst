@@ -88,8 +88,8 @@ example notebooks on the RENT GitHub repository.
     from RENT import RENT
 
     # Load dataset 
-    train_data = pd.read_csv("data/wisconsin_train.csv").iloc[:,1:]
-    train_labels = pd.read_csv("data/wisconsin_train_labels.csv").iloc[:,1].values
+    train_data = pd.read_csv("examples/data/wisconsin_train.csv").iloc[:,1:]
+    train_labels = pd.read_csv("examples/data/wisconsin_train_labels.csv").iloc[:,1].values
 
     # Build RENT model
     # Define a range of regularisation parameters C for elastic net. 
@@ -119,9 +119,9 @@ example notebooks on the RENT GitHub repository.
     model.train()
 
     # Actual feature selection step
-    selected_features = model.selectFeatures(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
+    selected_features = model.select_features(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
     print("selected features: ", selected_features)
-    selected features: [7, 20, 21, 22, 24, 27]
+    selected features: [ 7 20 21 22 24 27]
 
 
 Regression Example
@@ -177,7 +177,6 @@ analysis have a look at the example notebooks on the RENT GitHub repository.
     model.train()
 
     # Actual feature selection step
-    selected_features = model.selectFeatures(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
-    selected_features = model.selectFeatures(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
+    selected_features = model.select_features(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
     print("selected features: ", selected_features)
-    selected features: [0, 1, 2, 4, 5, 6, 7, 8, 10, 11, 13, 14, 16, 17, 19, 835]
+    selected features: [  0   1   2   4   5   6   7   8  10  11  13  14  16  17  19 835]

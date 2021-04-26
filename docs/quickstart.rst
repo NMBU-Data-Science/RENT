@@ -72,7 +72,7 @@ After testing is finished, pytest should report that none of tests failed.
 
 
 .. note::
-    In the test RENT is applied to the Wisconsin breast cancer dataset (for classification) and an artificial dataset (for regression). During the test, there will appear convergence warnings because the maximum number of         iterations will be reached. The same is true for a runtime warning due to a true divide. 
+    In the test RENT is applied to the Wisconsin breast cancer dataset (for classification) and an artificial dataset (for regression). During the test, there will appear convergence warnings because the maximum number of iterations will be reached. The same is true for a runtime warning due to a true divide. 
 
 
 Classification Example
@@ -121,7 +121,7 @@ example notebooks on the RENT GitHub repository.
     # Actual feature selection step
     selected_features = model.select_features(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
     print("selected features: ", selected_features)
-    #output
+    #print output
     selected features: [ 7 20 21 22 24 27]
 
 
@@ -180,5 +180,5 @@ analysis have a look at the example notebooks on the RENT GitHub repository.
     # Actual feature selection step
     selected_features = model.select_features(tau_1_cutoff=0.9, tau_2_cutoff=0.9, tau_3_cutoff=0.975)
     print("selected features: ", selected_features)
-    #output
+    #print output
     selected features: [  0   1   2   4   5   6   7   8  10  11  13  14  16  17  19 835]

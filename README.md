@@ -18,7 +18,7 @@ Below are links to Jupyter-notebooks that illustrate how to use RENT for
 
 * [classification](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Classification_example.ipynb) 
 * [regression](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Regression_example.ipynb)
-* [hyperparameter search](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Extensive_Hyperparameter_Search.ipynb)
+* [hyperparameter search](https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Extensive_hyperparameter_search.ipynb)
 
 
 

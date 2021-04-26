@@ -31,7 +31,7 @@ Make sure that Python 3.5 or higher is installed. A convenient way to install Py
 
 Documentation
 -------------
-The following Jupyter notebooks provide a `classification example <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Classification_example.ipynb>`_ and a `regression example <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Regression_example.ipynb>`_, illustrating the RENT workflow. Further, the Jupyter notebook about `extensive hyperparameter search <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Extensive_Hyperparameter_Search.ipynb>`_ illustrates how elastic net hyperparameter search can be embedded in RENT training.
+The following Jupyter notebooks provide a `classification example <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Classification_example.ipynb>`_ and a `regression example <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Regression_example.ipynb>`_, illustrating the RENT workflow. Further, the Jupyter notebook about `extensive hyperparameter search <https://github.com/NMBU-Data-Science/RENT/blob/master/examples/Extensive_hyperparameter_search.ipynb>`_ illustrates how elastic net hyperparameter search can be embedded in RENT training.
 
 
 RENT repository on GitHub

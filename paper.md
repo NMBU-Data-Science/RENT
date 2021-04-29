@@ -44,6 +44,6 @@ The manuscript RENT - Repeated Elastic Net Technique for Feature Selection is cu
 different master thesis projects at the Norwegian University of Life Sciences, mainly in the field of healthcare data analysis.
 
 # Acknowledgements
-In special we thank Runar Helin for proofreading of the documentation.
+We thank Runar Helin for proofreading of the documentation.
 
 # References

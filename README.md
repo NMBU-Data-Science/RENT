@@ -39,7 +39,7 @@ Make sure that Python 3.5 or higher is installed. A convenient way to install Py
 
 Installation
 ------------
-To install the package with the pip package manager, run the following command:
+To install the package with the pip package manager, run the following command:  
 `python3 -m pip install git+https://github.com/NMBU-Data-Science/RENT.git`
 
 

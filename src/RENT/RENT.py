@@ -800,7 +800,7 @@ class RENT_Base(ABC):
             if problem == "class":
                 cbar.set_label('average object prediction', fontsize=10)
             else:
-                cbar.set_label('average absolute error', fontsize=10)
+                cbar.set_label('mean absolute error', fontsize=10)
         plt.xticks(fontsize=10)
         plt.yticks(fontsize=10)
         objnames = list(data.index.astype('str'))
@@ -882,7 +882,7 @@ class RENT_Base(ABC):
         print("Mean VS2", np.mean(VS2))
         T = (np.mean(VS2) - score) / (np.std(VS2,ddof=1) / np.sqrt(len(VS2)))
         p_value_VS2 = t.cdf(T, len(VS2)-1)
-        print("VS2: p-value for score from permutation of test labels: ", 
+        print("VS2: p-value for average score from permutation of test labels: ", 
               p_value_VS2)
         print("VS2: heuristic p-value (how many scores are higher"+
               " than the RENT score): ", heuristic_p_value_VS2)
@@ -1818,7 +1818,7 @@ class RENT_Regression(RENT_Base):
         """
         Each object of the dataset is a certain number between 0 (never) and ``K`` 
         (always) part of th test set inside RENT training.
-        This method computes a summary of the average absolute errors for each sample
+        This method computes a summary of the mean absolute errors for each sample
         across all models, where the sample was part of the test set.
 
         Returns
@@ -1835,7 +1835,7 @@ class RENT_Regression(RENT_Base):
 
         self._incorrect_labels = pd.DataFrame({'# test':np.repeat\
                                       (0, np.shape(self._data)[0]),
-                                      'average abs error':np.repeat\
+                                      'mean abs error':np.repeat\
                                       (0, np.shape(self._data)[0])})
         self._incorrect_labels.index=self._indices.copy()
 
@@ -1848,15 +1848,15 @@ class RENT_Regression(RENT_Base):
                                         for x in range(
                                                 self._histogram_data.shape[1])]
         count = self._histogram_data.count(axis=1)
-        avg_abs_error = np.nanmean(self._histogram_data, axis=1)
+        mean_abs_error = np.nanmean(self._histogram_data, axis=1)
 
-        summary_df = pd.DataFrame({'count': count, 'avgerror': avg_abs_error})
+        summary_df = pd.DataFrame({'count': count, 'mae': mean_abs_error})
         summary_df.index = self._histogram_data.index
 
         self._incorrect_labels.loc[summary_df.index,'# test'] = \
         summary_df.loc[:,'count']
-        self._incorrect_labels.loc[summary_df.index,'average abs error'] = \
-        summary_df.loc[:,'avgerror']
+        self._incorrect_labels.loc[summary_df.index,'mean abs error'] = \
+        summary_df.loc[:,'mae']
 
         self._incorrect_labels.iloc[ \
             np.where(self._incorrect_labels.iloc[:,0] == 0)[0]] = np.nan
@@ -1929,7 +1929,7 @@ class RENT_Regression(RENT_Base):
             else:
                 ax.set_ylabel('frequencies', fontsize=10)
                 ax.set_xlabel('Absolute Error', fontsize=10)
-            ax.set_title('Object: {0}', fontsize=10)
+            ax.set_title('Object: {0}'.format(obj), fontsize=10)
     
     
     def _prepare_validation_study(self, test_data, test_labels, num_drawings, 

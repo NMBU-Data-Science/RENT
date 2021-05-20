@@ -151,7 +151,7 @@ class RENT_Base(ABC):
             self._indices = list(range(data.shape[0]))
 
         if isinstance(self._target, pd.Series):
-            self._target.index = data.index
+            self._target.index = self._indices
 
         # If no feature names are given, create some
         if len(self._feat_names) == 0:

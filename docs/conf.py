@@ -32,7 +32,6 @@ release = '0.0.1'
 # ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
 
-
 # Add any paths that contain templates here, relative to this directory.
 # templates_path = [zerovm_sphinx_theme.theme_path]
 html_theme_path = [sphinxbootstrap4theme.get_path()]

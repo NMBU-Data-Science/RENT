@@ -30,7 +30,7 @@ release = '0.0.1'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.mathjax']
 
 # Add any paths that contain templates here, relative to this directory.
 # templates_path = [zerovm_sphinx_theme.theme_path]
@@ -57,3 +57,6 @@ html_theme = 'sphinxbootstrap4theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = []
 html_logo = 'Logo.png'
+
+
+mathjax_path = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"

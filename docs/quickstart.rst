@@ -56,7 +56,21 @@ The correctness of the results may be checked using the test provided in the `te
 
 .. _tests: https://github.com/NMBU-Data-Science/RENT/tree/master/tests
 
-After cloning the repository to your disk, at the command line navigate to the test folder. The code below shows an example of how to run the tests for classification.
+After cloning the repository to your disk, navigate to the RENT folder and install the requirements which are needed for testing.
+
+.. code-block:: bash
+
+        pip install -r requirements.txt
+        pip install -e .
+
+You can run both tests with the command:
+
+.. code-block:: bash
+
+        tox .
+
+
+To run a specific test (classification or regression), use the command line to navigate to the test folder. The code below shows an example of how to run the tests for classification.
 
 .. code-block:: bash
         

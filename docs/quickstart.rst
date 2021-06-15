@@ -14,7 +14,7 @@ understanding of RENT and the available analysis methods.
 
 Requirements
 ------------
-Make sure that Python 3.5 or higher is installed. A convenient way to install Python and many useful packages for scientific computing is to use the `Anaconda distribution`_.
+Make sure that Python 3.5 or higher is installed (preferably 3.8). A convenient way to install Python and many useful packages for scientific computing is to use the `Anaconda distribution`_.
 
 .. _Anaconda distribution: https://www.anaconda.com/products/individual
 

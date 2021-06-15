@@ -36,7 +36,7 @@ pip install -e .
 tox .
 ```
 
-## RENT testing
+## Testing RENT
 Step 4 in the previous section runs the entire test suite. Navigating to the **test** folder, you can run a test for a classification and a regression problem separately with 
 
 ```

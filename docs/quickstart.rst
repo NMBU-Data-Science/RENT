@@ -69,7 +69,7 @@ You can run both tests with the command:
 
         tox .
 
-tox runs the tests for all python versions in the tox.ini file, which are 3.7 and 3.8 for RENT. If only one version is installed on your computer, be aware that the program will throw an error for the not install version but run smoothly for the installed version.
+tox runs the tests for all python versions in the `tox.ini`_ file, which are 3.7 and 3.8 for RENT. If only one version is installed on your computer, be aware that the program will throw an error for the not install version but run smoothly for the installed version.
 
 To run a specific test (classification or regression), use the command line to navigate to the test folder. The code below shows an example of how to run the tests for classification.
 

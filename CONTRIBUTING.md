@@ -1,7 +1,7 @@
 # Contributing to RENT
 
-Your contribution to RENT is very welcome. For the implementantion of a new feature or bug-fixing, we encourage you to send a Pull Request to https://github.com/NMBU-Data-Science/RENT. Please add a detailed and concise
-description of the invented feature or the bug. In case of a bug, include comments about your solution. To improve RENT even more, feel free to send us issues with bugs, you are not sure about. 
+Your contribution to RENT is very welcome! For the implementantion of a new feature or bug-fixing, we encourage you to send a Pull Request to https://github.com/NMBU-Data-Science/RENT. Please add a detailed and concise
+description of the invented feature or the bug. In case of fixing a bug, include comments about your solution. To improve RENT even more, feel free to send us issues with bugs, you are not sure about. 
 Furthermore, you can also contribute to the improvement of the Read the Docs documentation page. We are thankful for any kind of constructive criticism and suggestions.
 
 When you are finished with your implementantions and bug-fixing, please send a Pull Request to https://github.com/NMBU-Data-Science/RENT.

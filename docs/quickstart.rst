@@ -25,7 +25,7 @@ The target audiences are machine learning practicioners and researchers from var
 
 Requirements
 ------------
-Make sure that Python 3.5 or higher is installed. A convenient way to install Python and many useful packages for scientific computing is to use the `Anaconda distribution`_.
+Make sure that Python 3.5 or higher is installed (preferably 3.8). A convenient way to install Python and many useful packages for scientific computing is to use the `Anaconda distribution`_.
 
 .. _Anaconda distribution: https://www.anaconda.com/products/individual
 
@@ -80,6 +80,7 @@ You can run both tests with the command:
 
         tox .
 
+tox runs the tests for all python versions in the **tox.ini** file, which are 3.7 and 3.8 for RENT. If only one version is installed on your computer, be aware that the program will throw an error for the not install version but run smoothly for the installed version.
 
 To run a specific test (classification or regression), use the command line to navigate to the test folder. The code below shows an example of how to run the tests for classification.
 

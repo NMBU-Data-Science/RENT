@@ -12,6 +12,17 @@ understanding of RENT and the available analysis methods.
 
 .. _RENT - Repeated Elastic Net Technique for Feature Selection: https://arxiv.org/abs/2009.12780v2
 
+
+Statement of Need
+-----------------
+Most feature selection methods provide only a subset of selected features from the original full set of features.
+However, they often lack information on whether the selection of the features can be considered to be robust or not.
+RENT adresses this issue by providing information on selection robustness and supports users to perform accurate and stable feature selection.
+Apart from selecting informative features, the package delivers information for interpretation of single objects across the ensemble model,
+as well as a validation study. In addition, post-hoc analysis can be used for further graphical interpretation and performance evaluation based on 
+principal component analysis.
+The target audiences are machine learning practicioners and researchers from various domains where feature selection is of high importance.
+
 Requirements
 ------------
 Make sure that Python 3.5 or higher is installed. A convenient way to install Python and many useful packages for scientific computing is to use the `Anaconda distribution`_.

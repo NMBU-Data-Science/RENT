@@ -60,8 +60,6 @@ Jenul et al., (2021). RENT: A Python Package for Repeated Elastic Net Feature Se
 
 Bibtex entry:
 
-.. code-block:: bash
-
     @article{RENT,
     doi = {10.21105/joss.03323},
     url = {https://doi.org/10.21105/joss.03323},

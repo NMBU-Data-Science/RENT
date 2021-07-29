@@ -54,8 +54,7 @@ Citing RENT
 
 If you use RENT in a report or scientific publication, we would appreciate citations to the following paper:
 
-.. image:: https://joss.theoj.org/papers/10.21105/joss.03323/status.svg
-   :target: https://doi.org/10.21105/joss.03323
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.03323/status.svg)](https://doi.org/10.21105/joss.03323)
 
 Jenul et al., (2021). RENT: A Python Package for Repeated Elastic Net Feature Selection. Journal of Open Source Software, 6(63), 3323, https://doi.org/10.21105/joss.03323 
 

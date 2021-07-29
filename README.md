@@ -48,3 +48,32 @@ Documentation
 
 Documentation is available at [ReadTheDocs](https://rent.readthedocs.io/en/latest/). It provides detailed explanation of methods and their inputs.
 
+
+Citing RENT
+--------------
+
+If you use RENT in a report or scientific publication, we would appreciate citations to the following paper:
+
+.. image:: https://joss.theoj.org/papers/10.21105/joss.03323/status.svg
+   :target: https://doi.org/10.21105/joss.03323
+
+Jenul et al., (2021). RENT: A Python Package for Repeated Elastic Net Feature Selection. Journal of Open Source Software, 6(63), 3323, https://doi.org/10.21105/joss.03323 
+
+Bibtex entry:
+
+.. code-block:: bash
+
+    @article{RENT,
+    doi = {10.21105/joss.03323},
+    url = {https://doi.org/10.21105/joss.03323},
+    year = {2021},
+    publisher = {The Open Journal},
+    volume = {6},
+    number = {63},
+    pages = {3323},
+    author = {Anna Jenul and Stefan Schrunner and Bao Ngoc Huynh and Oliver Tomic},
+    title = {RENT: A Python Package for Repeated Elastic Net Feature Selection},
+    journal = {Journal of Open Source Software}
+    }
+
+

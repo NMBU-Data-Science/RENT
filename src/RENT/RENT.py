@@ -23,7 +23,8 @@ from joblib import Parallel, delayed
 from sklearn.linear_model import LogisticRegression, ElasticNet, \
     LinearRegression
 from sklearn.metrics import f1_score, precision_score, recall_score, \
-                            matthews_corrcoef, r2_score, accuracy_score
+                            matthews_corrcoef, r2_score, accuracy_score, \
+                            log_loss
 from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
@@ -38,66 +39,58 @@ class RENT_Base(ABC):
     
     PARAMETERS
     -----
-
     data: <numpy array> or <pandas dataframe>
         Dataset on which feature selection shall be performed. 
         Variable types must be numeric or integer.
-
     target: <numpy array> or <pandas dataframe>
         Response variable of data.
-
     feat_names : <list>
         List holding feature names. Preferably a list of string values. 
         If empty, feature names will be generated automatically. 
         Default: ``feat_names=[]``.
-    
     C : <list of int or float values>
         List with regularisation parameters for ``K`` models. The lower,
         the stronger the regularization is. Default: ``C=[1,10]``.
-
     l1_ratios : <list of int or float values>
         List holding ratios between l1 and l2 penalty. Values must be in [0,1]. For
         pure l2 use 0, for pure l1 use 1. Default: ``l1_ratios=[0.6]``.
-
     autoEnetParSel : <boolean>
         Cross-validated elastic net hyperparameter selection.
             - ``autoEnetParSel=True`` : peform a cross-validation pre-hyperparameter\
                 search, such that RENT runs only with one hyperparamter setting.
             - ``autoEnetParSel=False`` : perform RENT with each combination of ``C`` \
                 and ``l1_ratios``. Default: ``autoEnetParSel=True``.
-        
+    BIC : <boolean>
+        Use the Bayesian information criterion to select hyperparameters.
+            - ``BIC=True`` : use BIC to select RENT hyperparameters.
+            - ``BIC=False``: no use of BIC.   
     poly : <str> 
         Create non-linear features. Default: ``poly='OFF'``.
             - ``poly='OFF'`` : no feature interaction.
             - ``poly='ON'`` : feature interaction and squared features (2-polynoms).
             - ``poly='ON_only_interactions'`` : only feature interactions, \
                 no squared features.
-
     testsize_range : <tuple float>
          Inside RENT, ``K`` models are trained, where the testsize defines the 
          proportion of train data used for testing of a single model. The testsize 
          can either be randomly selected inside the range of ``testsize_range`` 
          for each model or fixed by setting the two tuple entries to the same value. 
          The tuple must be in range (0,1). Default: ``testsize_range=(0.2, 0.6)``.
-
     K : <int>
         Number of unique train-test splits. Default ``K=100``.
-
     scale : <boolean>
         Columnwise standardization each of the K train datasets. Default ``scale=True``.
-
     random_state : <None or int>
         Set a random state to reproduce your results. Default: ``random_state=None``.
             - ``random_state=None`` : no random seed. 
-            - ``random_state={0,1,2,...}`` : random seed set.
-        
+            - ``random_state={0,1,2,...}`` : random seed set.       
     verbose : <int>
         Track the train process if value > 1. If ``verbose = 1``, only the overview
         of RENT input will be shown. Default: ``verbose=0``.
     """
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
-                 autoEnetParSel=True, poly='OFF',testsize_range=(0.2, 0.6), 
+                 autoEnetParSel=True, BIC=False, poly='OFF',testsize_range=(0.2, 0.6), 
                  K=100, scale = True, random_state = None, verbose = 0):
 
         if any(c < 0 for c in C):
@@ -106,6 +99,8 @@ class RENT_Base(ABC):
             sys.exit('l1 ratios must be in [0,1]!')
         if autoEnetParSel not in [True, False]:
             sys.exit('autoEnetParSel must be True or False!')
+        if BIC not in [True, False]:
+            sys.exit('BIC must be True or False!')
         if scale not in [True, False]:
             sys.exit('scale must be True or False!')
         if poly not in ['ON', 'ON_only_interactions', 'OFF']:
@@ -138,6 +133,7 @@ class RENT_Base(ABC):
         self._scale = scale
         self._verbose = verbose
         self._autoEnetParSel = autoEnetParSel
+        self._BIC = BIC
         self._random_state = random_state
         self._poly = poly
         
@@ -213,8 +209,12 @@ class RENT_Base(ABC):
         
 
         if self._autoEnetParSel == True:
-            self._C, self._l1_ratios = self._par_selection(C=C, 
-                                                           l1_ratios=l1_ratios)
+            if self._BIC == False:
+                self._C, self._l1_ratios = self._par_selection(C=C, 
+                                                            l1_ratios=l1_ratios)
+            else:
+                self._C, self._l1_ratios = self._par_selection_BIC(C=C, 
+                                                            l1_ratios=l1_ratios)
             self._C = [self._C]
             self._l1_ratios = [self._l1_ratios]
         else:
@@ -227,6 +227,10 @@ class RENT_Base(ABC):
 
     @abstractmethod
     def _par_selection(self, C_params, l1_params, n_splits, testsize_range):
+        pass
+    
+    @abstractmethod
+    def _par_selection_BIC(self, C_params, l1_params, n_splits, testsize_range):
         pass
 
     @abstractmethod
@@ -329,7 +333,7 @@ class RENT_Base(ABC):
         """
         Selects features based on the cutoff values for tau_1_cutoff, 
         tau_2_cutoff and tau_3_cutoff.
-
+        
         Parameters
         ----------
         tau_1_cutoff : <float>
@@ -341,7 +345,7 @@ class RENT_Base(ABC):
         tau_3_cutoff : <float>
             Cutoff value for tau_3 criterion. Choose value between 0 and
             1. Default: ``tau_3=0.975``.
-
+            
         Returns
         -------
         <numpy array>
@@ -383,6 +387,41 @@ class RENT_Base(ABC):
         #if len(self._sel_var) == 0:
         #    warnings.warn("Attention! Thresholds are too restrictive - no features selected!")
         return self._sel_var
+    
+    def BIC_cutoff_search(self, parameters):
+        """
+        Compute the Bayesian information criterion for each combination of tau1, tau2 and tau3.
+        
+        PARAMETERS
+        -----
+        parameters: <dict> or
+            Cutoff parameters to evaluate.
+        Returns
+        -------
+        <numpy array>
+            Array wth the BIC values.
+        """
+        sc = StandardScaler()
+        # Bayesian information criterion
+        BIC = np.zeros(shape=(len(parameters['t1']), len(parameters['t2']),
+                                len(parameters['t3'])))
+        # grid search t1, t2, t3
+        for i, t1 in enumerate(parameters['t1']):
+            for j, t2 in enumerate(parameters['t2']):
+                for k, t3 in enumerate(parameters['t3']):
+                    sel_feat = self.select_features(t1, t2, t3)
+
+                    train_data = sc.fit_transform(self._data.iloc[:,sel_feat])
+                    lr = LogisticRegression().fit(train_data, self._target)
+                    num_params = len(np.where(lr.coef_ != 0)[1]) + 1
+                    pred_proba = lr.predict_proba(train_data)
+                    pred = lr.predict(train_data)
+                    
+                    log_lik = log_loss(y_true=self._target, y_pred=pred_proba, normalize=False)
+                    B = 2 * log_lik + np.log(len(pred)) * num_params
+                    BIC[i,j,k] = B
+                    
+        return BIC
 
     def get_summary_criteria(self):
         """
@@ -414,7 +453,7 @@ class RENT_Base(ABC):
                 - ``binary=True`` : binary matrix where entry is 1 \
                     for each weight unequal to 0.
                 - ``binary=False`` : original weight matrix.
-
+                
         RETURNS
         -------
         <pandas dataframe>
@@ -440,7 +479,6 @@ class RENT_Base(ABC):
     def get_scores_list(self):
         """
         Prediction scores over the ``K`` models.
-
         RETURNS
         -------
         <list>
@@ -475,7 +513,7 @@ class RENT_Base(ABC):
         """
         Three pandas data frames showing cross-validated result for all combinations
         of ``C`` and ``l1_ratio`` . Only applicable if ``autoEnetParSel=True``.
-
+        
         RETURNS
         -------
         <list> of <pandas dataframes>
@@ -488,11 +526,24 @@ class RENT_Base(ABC):
                 dataFrame_2. The parameter combination with the highest \
                     harmonic mean is selected.
         """
-        if self._autoEnetParSel == True:
+        if self._autoEnetParSel == True and self._BIC ==False:
             return self._scores_df_cv, self._zeros_df_cv, self._combination_cv
         else:
-            print("autoEnetParSel=False - parameters have not been selected with cross-validation.")
+            print("autoEnetParSel=False or BIC=True - parameters have not been selected with cross-validation.")
 
+    def get_BIC_matrix(self):
+        """
+        Dataframe with BIC value for each combination of ``C`` and ``11_ratio``.
+        RETURNS
+        -------
+        <pandas dataframes>
+            Dataframe of BIC values.
+        """
+        if self._autoEnetParSel == True and self._BIC ==True:
+            return self._BIC_df
+        else:
+            print("BIC=False - parameters have not been selected with BIC.")
+    
     def get_enet_params(self):
         """
         Get current hyperparameter combination of ``C`` and ``l1_ratio`` that 
@@ -583,7 +634,7 @@ class RENT_Base(ABC):
         possibilities for the scores are provided.
         Besides scores, loadings, correlation loadings, biplot, and explained 
         variance plots are available. 
-
+        
         Parameters
         ----------
         cl : <int>, <str>
@@ -594,11 +645,9 @@ class RENT_Base(ABC):
                 - ``cl='continuous'``: All objects (gradient coloring). \
                     For classification problems, this is the only valid option.
         comp1 : <int>
-            First PCA component to plot. Default: ``comp1=1``.
-            
+            First PCA component to plot. Default: ``comp1=1``.            
         comp2 : <int>
-            Second PCA component to plot. Default: ``comp2=2``.
-            
+            Second PCA component to plot. Default: ``comp2=2``.  
         problem : <str>
             Classification or regression problem. Default: ``problem='class'``.
                 - ``problem='class'``: Classification problem. Can be used with \
@@ -618,8 +667,7 @@ class RENT_Base(ABC):
                 - 4: biplot
                 - 6: explained variance plot
         sel_vars : <boolean>
-            Only use the features selected with RENT for PCA. Default: ``sel_vars=True``.
-        
+            Only use the features selected with RENT for PCA. Default: ``sel_vars=True``.            
         """
         if cl not in [0, 1, 'both', 'continuous']:
             sys.exit(" 'cl' must be either 0, 1, 'both' or 'continuous'")
@@ -822,7 +870,7 @@ class RENT_Base(ABC):
             
         If ``poly='ON'`` or ``poly='ON_only_interactions'`` in the RENT initialization, 
         the test data is automatically polynomially transformed.
-
+        
         PARAMETERS
         ----------
         
@@ -910,7 +958,7 @@ class RENT_Base(ABC):
         ----------
         <float>
             ``num``: numeric value
-
+            
         RETURNS
         -------
         <numeric value>
@@ -931,7 +979,7 @@ class RENT_Base(ABC):
         ----------
         <numpy array>
             ``arr``: Array of numeric values.
-
+            
         RETURNS
         -------
         <numeric value>
@@ -947,7 +995,7 @@ class RENT_Base(ABC):
         ----------
         <numpy array>
             ``arr``: Array of numeric values.
-
+            
         RETURNS
         -------
         <numpy array>
@@ -959,81 +1007,67 @@ class RENT_Base(ABC):
 class RENT_Classification(RENT_Base):
     """
     This class carries out RENT on a given binary classification dataset. 
-
+    
     PARAMETERS
-    -----
-
+    ----------
     data : <numpy array> or <pandas dataframe>
         Dataset on which feature selection is performed. \
-            Variable types must be numeric or integer.
-
+            Variable types must be numeric or integer.            
     target : <numpy array> or <pandas dataframe>
-        Response variable of data.
-
+        Response variable of data.        
     feat_names : <list>
         List holding feature names. Preferably a list of string values. \
             If empty, feature names will be generated automatically. \
-                Default: ``feat_names=[]``.
-
+                Default: ``feat_names=[]``.                
     C : <list of int or float values>
         List with regularisation parameters for ``K`` models. The lower,
-        the stronger the regularization is. Default: ``C=[1,10]``.
-
+        the stronger the regularization is. Default: ``C=[1,10]``.        
     l1_ratios : <list of int or float values>
         List holding ratios between l1 and l2 penalty. Values must be in [0,1]. \
-            For pure l2 use 0, for pure l1 use 1. Default: ``l1_ratios=[0.6]``.
-
+            For pure l2 use 0, for pure l1 use 1. Default: ``l1_ratios=[0.6]``.            
     autoEnetParSel : <boolean>
         Cross-validated elastic net hyperparameter selection.
             - ``autoEnetParSel=True`` : peform a cross-validation pre-hyperparameter \
                 search, such that RENT runs only with one hyperparamter setting.
             - ``autoEnetParSel=False`` : perform RENT with each combination of ``C`` \
-                and ``l1_ratios``. Default: ``autoEnetParSel=True``.
-        
+                and ``l1_ratios``. Default: ``autoEnetParSel=True``.        
     poly : <str> 
         Create non-linear features. Default: ``poly='OFF'``.
             - ``poly='OFF'`` : no feature interaction.
             - ``poly='ON'`` : feature interaction and squared features (2-polynoms).
             - ``poly='ON_only_interactions'`` : only feature interactions, \
-                no squared features.
-
+                no squared features.               
     testsize_range : <tuple float>
-         Inside RENT, ``K`` models are trained, where the testsize defines the \
-             proportion of train data used for testing of a single model. The testsize 
-         can either be randomly selected inside the range of ``testsize_range`` for \
-             each model or fixed by setting the two tuple entries to the same value. 
-         The tuple must be in range (0,1).
-         Default: ``testsize_range=(0.2, 0.6)``.
-
+            Inside RENT, ``K`` models are trained, where the testsize defines the \
+                proportion of train data used for testing of a single model. The testsize 
+            can either be randomly selected inside the range of ``testsize_range`` for \
+                each model or fixed by setting the two tuple entries to the same value. 
+            The tuple must be in range (0,1).
+            Default: ``testsize_range=(0.2, 0.6)``.            
     scoring : <str>
         The metric to evaluate K models. Default: ``scoring='mcc'``.
             - ``scoring='accuracy'`` :  Accuracy
             - ``scoring='f1'`` : F1-score
             - ``scoring='precision'`` : Precision
             - ``scoring='recall'``: Recall
-            - ``scoring='mcc'`` : Matthews Correlation Coefficient
-
+            - ``scoring='mcc'`` : Matthews Correlation Coefficient            
     classifier : <str>
         Classifier with witch models are trained.
-            -``classifier='logreg'`` : Logistic Regression
-
+            - ``classifier='logreg'`` : Logistic Regression            
     K : <int>
-        Number of unique train-test splits. Default: ``K=100``.
-
+        Number of unique train-test splits. Default: ``K=100``.        
     scale : <boolean>
         Columnwise standardization of the ``K`` train datasets. \
             Default: ``scale=True``.
-    
     random_state : <None or int>
         Set a random state to reproduce your results. \
             Default: ``random_state=None``.
             - ``random_state=None`` : no random seed. 
-            - ``random_state={0,1,2,...}`` : random seed set.
-        
+            - ``random_state={0,1,2,...}`` : random seed set.        
     verbose : <int>
         Track the train process if value > 1. If ``verbose = 1``, only the overview
         of RENT input will be shown. Default: ``verbose=0``.
-
+        
     RETURNS
     ------
     <class>
@@ -1041,13 +1075,13 @@ class RENT_Classification(RENT_Base):
     """
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
-                 autoEnetParSel=True, poly='OFF',
+                 autoEnetParSel=True, BIC=False, poly='OFF',
                  testsize_range=(0.2, 0.6), scoring='accuracy',
                  classifier='logreg', K=100, scale = True, random_state = None, 
                  verbose = 0):
 
         super().__init__(data, target, feat_names, C, l1_ratios, 
-                         autoEnetParSel, poly, testsize_range, K, scale, 
+                         autoEnetParSel, BIC, poly, testsize_range, K, scale, 
                          random_state, verbose)
         
         if scoring not in ['accuracy', 'f1', 'mcc']:
@@ -1071,33 +1105,30 @@ class RENT_Classification(RENT_Base):
                         testsize_range=(0.25,0.25)):
         """
         Preselect best `C` and `l1 ratio` with cross-validation.
-
+        
         PARAMETERS
         ----------
         C: <list of int or float values>
             List holding regularisation parameters for `K` models. The lower, the
-            stronger the regularization is.
-
+            stronger the regularization is.            
         l1_ratios: <list of int or float values>
             List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
             pure l2 use 0, for pure l1 use 1.
         n_splits : <int>
-            Number of cross-validation folds. Default: ``n_splits=5``.
-            
+            Number of cross-validation folds. Default: ``n_splits=5``.            
         testsize_range: <tuple float>
             Range of random proportion of dataset to include in test set,
             low and high are floats between 0 and 1. \
                 Default: ``testsize_range=(0.2, 0.6)``.
             Testsize can be fixed by setting low and high to the same value.
-
+            
         RETURNS
         -------
         <tuple>
             - First entry: suggested `C` parameter.
-            - Second entry: suggested `l1 ratio`.
-
+            - Second entry: suggested `l1 ratio`.            
         """
-
+        
         skf = StratifiedKFold(n_splits=n_splits, random_state=self._random_state,\
                               shuffle=True)
         scores_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
@@ -1106,7 +1137,7 @@ class RENT_Classification(RENT_Base):
         def run_parallel(l1):
             """
             Parallel computation of for ``K`` * ``C`` * ``l1_ratios`` models.
-
+            
             PARAMETERS
             -----
             l1: current l1 ratio in the parallelization framework.
@@ -1189,16 +1220,85 @@ class RENT_Classification(RENT_Base):
             self._combination_cv.columns.name = 'Harmonic Mean'
 
         return(best_C, best_l1)
+    
+    
+    
+    
+    def _par_selection_BIC(self,
+                        C,
+                        l1_ratios):
+        """
+        Preselect best `C` and `l1 ratio` with cross-validation.
+        PARAMETERS
+        ----------
+        C: <list of int or float values>
+            List holding regularisation parameters for `K` models. The lower, the
+            stronger the regularization is.
+        l1_ratios: <list of int or float values>
+            List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
+            pure l2 use 0, for pure l1 use 1.
+        RETURNS
+        -------
+        <tuple>
+            - First entry: suggested `C` parameter.
+            - Second entry: suggested `l1 ratio`.
+        """
+        # self._AIC_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C) 
+        self._BIC_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C) 
+        def run_parallel(l1):
+            """
+            Parallel computation of for ``K`` * ``C`` * ``l1_ratios`` models.
+            PARAMETERS
+            -----
+            l1: current l1 ratio in the parallelization framework.
+            """
+            for reg in C:
+                if self._scale == True:
+                    sc = StandardScaler()
+                    train_data = sc.fit_transform(self._data)
+                    train_target = self._target
+                    
+                elif self._scale == False:
+                    train_data = self._data.values
+                    train_target = self._target
+                    
 
+                sgd = LogisticRegression(penalty="elasticnet", C=reg,
+                                            solver="saga", l1_ratio=l1,
+                                            random_state=self._random_state)
+
+                sgd.fit(train_data, train_target)
+
+                num_params = len(np.where(sgd.coef_ != 0)[1]) + 1
+                
+                pred = sgd.predict_proba(train_data)
+                log_likelihood = log_loss(y_true=train_target, y_pred=pred, normalize=False)
+                
+                # AIC = 2 * log_likelihood + 2 * num_params
+                BIC =  2 * log_likelihood + np.log(len(train_target)) * num_params
+                # self._AIC_df.loc[l1, reg] = AIC
+                self._BIC_df.loc[l1, reg] = BIC
+                
+        Parallel(n_jobs=-1, verbose=1, backend="threading")(
+             map(delayed(run_parallel), l1_ratios))
+
+        
+        best_combination_row, best_combination_col = np.where(self._BIC_df == \
+                                                      np.nanmin(self._BIC_df.values))
+        best_l1 = self._BIC_df.index[np.nanmax(best_combination_row)]
+        best_C = self._BIC_df.columns[np.nanmin(best_combination_col)]
+
+        return(best_C, best_l1)
+    
+    
+    
     def run_parallel(self, K):
         """
         If ``autoEnetParSel=False``, parallel computation of ``K`` * ``len(C)`` \
             * ``len(l1_ratios)`` classification models. Otherwise, \
-                computation of ``K`` models.
-        
-
+                computation of ``K`` models.     
         PARAMETERS
-        -----
+        ----------
         K: 
             Range of train-test splits. The parameter cannot be set directly \
                 by the user but is used for an internal parallelization.
@@ -1311,7 +1411,7 @@ class RENT_Classification(RENT_Base):
         This method computes a summary of classification results for each sample
         across all models, where the sample was part of the test set.
         The summary contains information on how often a sample has been mis-classfied.
-
+        
         RETURNS
         -------
         <pandas dataframe>
@@ -1321,7 +1421,6 @@ class RENT_Classification(RENT_Base):
             of the object, the third column indicates how often the object was 
             classified incorrectly and the fourth column shows the corresponding 
             percentage of incorrectness.
-
         """
         if not hasattr(self, '_best_C'):
             sys.exit('Run train() first!')
@@ -1359,14 +1458,14 @@ class RENT_Classification(RENT_Base):
         """
         Logistic Regression probabilities for each combination of object and model. 
         The method can only be used if ``classifier='logreg'``.
-
+        
         RETURNS
         -------
         <pandas dataframe>
             Matrix, where rows represent objects and columns represent \
                 logistic regression probability outputs (probability of \
                     belonging to class 1).
-
+                    
         """
 
         if not hasattr(self, '_pred_proba_dict'):
@@ -1547,30 +1646,25 @@ class RENT_Classification(RENT_Base):
 class RENT_Regression(RENT_Base):
     """
     This class carries out RENT on a given regression dataset. 
-
+    
     PARAMETERS
-    -----
-
+    ----------
+    
     data: <numpy array> or <pandas dataframe>
         Dataset on which feature selection shall be performed. \
-            Variable types must be numeric or integer.
-
+            Variable types must be numeric or integer.            
     target: <numpy array> or <pandas dataframe>
-        Response variable of data.
-
+        Response variable of data.        
     feat_names : <list>
         List holding feature names. Preferably a list of string values. \
             If empty, feature names will be generated automatically. \
                 Default: ``feat_names=[]``.
-    
     C : <list of int or float values>
         List with regularisation parameters for ``K`` models. The lower,
-        the stronger the regularization is. Default: ``C=[1,10]``.
-
+        the stronger the regularization is. Default: ``C=[1,10]``.        
     l1_ratios : <list of int or float values>
         List holding ratios between l1 and l2 penalty. Values must be in [0,1]. For
-        pure l2 use 0, for pure l1 use 1. Default: ``l1_ratios=[0.6]``.
-
+        pure l2 use 0, for pure l1 use 1. Default: ``l1_ratios=[0.6]``.        
     autoEnetParSel : <boolean>
         Cross-validated elastic net hyperparameter selection.
             - ``autoEnetParSel=True`` : peform a cross-validation \
@@ -1578,37 +1672,35 @@ class RENT_Regression(RENT_Base):
                     one hyperparamter setting.
             - ``autoEnetParSel=False`` : perform RENT with each combination of \
                 ``C`` and ``l1_ratios``. Default: ``autoEnetParSel=True``.
-        
+    BIC : <boolean>
+        Use the Bayesian information criterion to select hyperparameters.
+            - ``BIC=True`` : use BIC to select RENT hyperparameters.
+            - ``BIC=False``: no use of BIC. 
     poly : <str> 
         Create non-linear features. Default: ``poly='OFF'``.
             - ``poly='OFF'`` : no feature interaction.
             - ``poly='ON'`` : feature interaction and squared features (2-polynoms).
             - ``poly='ON_only_interactions'`` : only feature interactions, \
-                no squared features.
-
+                no squared features.                
     testsize_range : <tuple float>
          Inside RENT, ``K`` models are trained, where the testsize defines the \
              proportion of train data used for testing of a single model. The testsize 
          can either be randomly selected inside the range of ``testsize_range`` for \
              each model or fixed by setting the two tuple entries to the same value. 
          The tuple must be in range (0,1).
-         Default: ``testsize_range=(0.2, 0.6)``.
-
+         Default: ``testsize_range=(0.2, 0.6)``.         
     K : <int>
-        Number of unique train-test splits. Default ``K=100``.
-
+        Number of unique train-test splits. Default ``K=100``.   
     scale : <boolean>
-        Columnwise standardization of the K train datasets. Default ``scale=True``.
-
+        Columnwise standardization of the K train datasets. Default ``scale=True``.    
     random_state : <None or int>
         Set a random state to reproduce your results. Default: ``random_state=None``.
             - ``random_state=None`` : no random seed. 
             - ``random_state={0,1,2,...}`` : random seed set.
-        
     verbose : <int>
         Track the train process if value > 1. If ``verbose = 1``, only the overview
         of RENT input will be shown. Default: ``verbose=0``.
-
+        
     RETURNS
     ------
     <class>
@@ -1616,13 +1708,13 @@ class RENT_Regression(RENT_Base):
     """
 
     def __init__(self, data, target, feat_names=[], 
-                 C=[1,10], l1_ratios = [0.6], autoEnetParSel=True,
+                 C=[1,10], l1_ratios = [0.6], autoEnetParSel=True, BIC=False,
                  poly='OFF', testsize_range=(0.2, 0.6),
                  K=100, scale=True, random_state = None, verbose = 0):
 
 
         super().__init__(data, target, feat_names, C, l1_ratios, 
-                         autoEnetParSel, poly, testsize_range, K, scale, 
+                         autoEnetParSel, BIC, poly, testsize_range, K, scale, 
                          random_state, verbose)
 
     def _par_selection(self,
@@ -1632,30 +1724,28 @@ class RENT_Regression(RENT_Base):
                     testsize_range=(0.25,0.25)):
         """
         Preselect best `C` and `l1 ratio` with Cross-validation.
-
+        
         PARAMETERS
         ----------
         C: <list of int or float values>
         List holding regularisation parameters for `K` models. The lower, the
-        stronger the regularization is.
-
+        stronger the regularization is.        
         l1_ratios: <list of int or float values>
             List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
             pure l2 use 0, for pure l1 use 1.
         n_splits : <int>
             Number of cross-validation folds. Default ``n_splits=5``.
-            
         testsize_range: <tuple float>
             Range of random proportion of dataset to include in test set,
             low and high are floats between 0 and 1. Default ``testsize_range=(0.2, 0.6)``.
             Testsize can be fixed by setting low and high to the same value.
-
+            
         RETURNS
         -------
         <tuple> 
             First entry: suggested `C` parameter.
             Second entry: suggested `l1 ratio`.
-
+            
         """
         skf = KFold(n_splits=n_splits, random_state=self._random_state, shuffle=True)
         scores_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C)
@@ -1664,9 +1754,9 @@ class RENT_Regression(RENT_Base):
         def run_parallel(l1):
             """
             Parallel computation of for ``K`` * ``C`` * ``l1_ratios`` models.
-
+            
             PARAMETERS
-            -----
+            ----------
             l1: current l1 ratio in the parallelization framework.
             """
             for reg in C:
@@ -1746,6 +1836,80 @@ class RENT_Regression(RENT_Base):
         self._zeros_df_cv.columns.name = 'Zeros'
         self._combination_cv.columns.name = 'Harmonic Mean'
         return(best_C, best_l1)
+    
+    
+    def _par_selection_BIC(self,
+                        C,
+                        l1_ratios):
+        """
+        Preselect best `C` and `l1 ratio` with the Bayesian information criterion.
+        PARAMETERS
+        ----------
+        C: <list of int or float values>
+            List holding regularisation parameters for `K` models. The lower, the
+            stronger the regularization is.
+        l1_ratios: <list of int or float values>
+            List holding ratios between l1 and l2 penalty. Must be in [0,1]. For
+            pure l2 use 0, for pure l1 use 1.
+        RETURNS
+        -------
+        <tuple>
+            - First entry: suggested `C` parameter.
+            - Second entry: suggested `l1 ratio`.
+        """
+        # self._AIC_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C) 
+        self._BIC_df = pd.DataFrame(np.zeros, index=l1_ratios, columns=C) 
+        def run_parallel(l1):
+            """
+            Parallel computation of for ``K`` * ``C`` * ``l1_ratios`` models.
+            PARAMETERS
+            -----
+            l1: current l1 ratio in the parallelization framework.
+            """
+            for reg in C:
+                if self._scale == True:
+                    sc = StandardScaler()
+                    train_data = sc.fit_transform(self._data)
+                    train_target = self._target
+                    
+                elif self._scale == False:
+                    train_data = self._data.values
+                    train_target = self._target
+                    
+
+                sgd =  ElasticNet(alpha=1/reg, l1_ratio=l1,
+                                       max_iter=5000, 
+                                       random_state=self._random_state, \
+                                       fit_intercept=False).\
+                                       fit(train_data, train_target)
+
+                mod_coef = sgd.coef_.reshape(1, len(sgd.coef_))
+                #params = np.where(mod_coef != 0)[1]
+                self.test_coef = mod_coef
+                num_params = len(np.where(mod_coef != 0)[1]) + 1
+                
+                pred = sgd.predict(train_data)
+                #log_likelihood = log_loss(y_true=train_target, y_pred=pred, normalize=False)
+                
+                sigma_2 = np.var(self._target, ddof=1)
+                SSE = np.sum((pred - self._target)**2)
+                n = len(pred)
+                
+                # AIC = n * np.log(2*np.pi *sigma_2) + 1/sigma_2 * SSE + 2*num_params
+                # self._AIC_df.loc[l1, reg] = AIC
+                self._BIC_df.loc[l1,reg] = n * np.log(2*np.pi *sigma_2) + 1/sigma_2 * SSE + np.log(n) * num_params 
+                
+        Parallel(n_jobs=-1, verbose=1, backend="threading")(
+             map(delayed(run_parallel), l1_ratios))
+
+        
+        best_combination_row, best_combination_col = np.where(self._BIC_df == \
+                                                      np.nanmin(self._BIC_df.values))
+        best_l1 = self._BIC_df.index[np.nanmax(best_combination_row)]
+        best_C = self._BIC_df.columns[np.nanmin(best_combination_col)]
+
+        return(best_C, best_l1)
+    
 
     def run_parallel(self, K):
         """
@@ -1820,15 +1984,14 @@ class RENT_Regression(RENT_Base):
         (always) part of th test set inside RENT training.
         This method computes a summary of the mean absolute errors for each sample
         across all models, where the sample was part of the test set.
-
+        
         Returns
         -------
         <pandas dataframe>
             Data matrix. Rows represent objects, columns represent generated variables. 
             The first column denotes how often the object was part of the test set, \
                 the second column shows the average absolute error.
-
-
+                
         """
         if not hasattr(self, '_best_C'):
             sys.exit('Run train() first!')
@@ -1867,12 +2030,12 @@ class RENT_Regression(RENT_Base):
         """
         Absolute errors for samples which were at least once in a test-set among ``K``
         models.
-
+        
         Returns
         -------
         <pandas dataframe>
             Matrix. Rows represent objects, columns represent genrated variables.
-
+            
         """
         if not hasattr(self, '_histogram_data'):
             sys.exit('Run get_summary_objects() first!')
@@ -1882,7 +2045,7 @@ class RENT_Regression(RENT_Base):
                                   upper=100, kde=False, norm_hist=False):
         """
         Histograms of absolute errors from ``get_object_errors()``.
-
+        
         PARAMETERS
         ----------
         object_id : <list of int or str>
@@ -1982,3 +2145,4 @@ class RENT_Regression(RENT_Base):
             model.predict(test_VS2)))
         
         return score, VS1, VS2
+    

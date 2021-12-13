@@ -8,7 +8,7 @@ RENT trains an ensemble of <img src="https://render.githubusercontent.com/render
 feature that contain rich information on the stability of feature selection and from which several adjustable classification criteria may be
 defined.
 
-More details are provided here: [RENT - Repeated Elastic Net Technique for Feature Selection](https://arxiv.org/abs/2009.12780v2)
+More details are in the original paper published in IEEE Access: [RENT - Repeated Elastic Net Technique for Feature Selection](https://ieeexplore.ieee.org/abstract/document/9606766)
 
 Example
 -------

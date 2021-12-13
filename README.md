@@ -49,7 +49,7 @@ Documentation
 Documentation is available at [ReadTheDocs](https://rent.readthedocs.io/en/latest/). It provides detailed explanation of methods and their inputs.
 
 
-Citing RENT
+Citing the RENT package
 --------------
 
 If you use RENT in a report or scientific publication, we would appreciate citations to the following paper:

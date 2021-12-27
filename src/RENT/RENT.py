@@ -33,7 +33,7 @@ from scipy.stats import t
 
 class RENT_Base(ABC):
     """
-    The constructor initializes common variables of RENT_Classification and RENT_Regresson.
+    The constructor initializes common variables of RENT_Classification and RENT_Regression.
     Initializations that are specific for classification or regression are described in 
     detail in RENT for binary classification and RENT for regression, respectively.
     
@@ -88,6 +88,12 @@ class RENT_Base(ABC):
         Track the train process if value > 1. If ``verbose = 1``, only the overview
         of RENT input will be shown. Default: ``verbose=0``.
     """
+    __slots__=["_data", "_target", "_feat_names", "_C", "_l1_ratios", "_autoEnetParSel",
+               "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
+               "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
+               "_best_l1_ratio", "_indices", "_runtime", "_scores_df", "_combination", 
+               "_zeros", "_perc", "_self_var", "_X_test", "_zeros_df","_sel_var",
+               "_incorrect_labels", "_pp_data"]
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
                  autoEnetParSel=True, BIC=False, poly='OFF',testsize_range=(0.2, 0.6), 
@@ -136,13 +142,11 @@ class RENT_Base(ABC):
         self._BIC = BIC
         self._random_state = random_state
         self._poly = poly
-        
+
         if isinstance(data, pd.DataFrame):
-            if isinstance(data.index, list):
-                self._indices = data.index
-            else:
+            if not isinstance(data.index, list):
                 data.index = list(data.index)
-                self._indices = data.index
+            self._indices = data.index
         else:
             self._indices = list(range(data.shape[0]))
 
@@ -166,10 +170,7 @@ class RENT_Base(ABC):
             polynom_feat_names = []
             # Construct a new name for squares and interactions
             for item in polynom_comb:
-                if item[0] == item[1]:
-                    name = item[0] + '^2'
-                else:
-                    name = item[0] + '*' + item[1]
+                name = item[0] + '^2' if item[0] == item[1] else item[0] + '*' + item[1]
                 polynom_feat_names.append(name)
 
             flist = list(self._feat_names)
@@ -206,7 +207,7 @@ class RENT_Base(ABC):
 
         else:
             sys.exit('Value for paramter "poly" not regcognised.')
-        
+
 
         if self._autoEnetParSel == True:
             if self._BIC == False:
@@ -354,12 +355,10 @@ class RENT_Base(ABC):
         if not hasattr(self, '_best_C'):
             sys.exit('Run train() first!')
 
-        weight_list = []
         #Loop through all K models
-        for K in range(self._K):
-            weight_list.append(self._weight_dict[(self._best_C,
+        weight_list = [self._weight_dict[(self._best_C,
                                                  self._best_l1_ratio,
-                                                 K)])
+                                                 K)] for K in range(self._K)]
         weight_array = np.vstack(weight_list)
 
         #Compute results based on weights
@@ -383,7 +382,7 @@ class RENT_Base(ABC):
                 (self._summary_df.iloc[1, :] >= tau_2_cutoff) &
                 (self._summary_df.iloc[2, :] >= tau_3_cutoff\
                             ))[0]
-        
+
         #if len(self._sel_var) == 0:
         #    warnings.warn("Attention! Thresholds are too restrictive - no features selected!")
         return self._sel_var
@@ -484,11 +483,11 @@ class RENT_Base(ABC):
         <list>
             Scores list.
         """
-        scores_list = []
-        for k in self._score_dict.keys():
-            if k[0] == self._best_C and k[1] == self._best_l1_ratio:
-                scores_list.append(self._score_dict[k])
-        return scores_list
+        return [
+            self._score_dict[k]
+            for k in self._score_dict.keys()
+            if k[0] == self._best_C and k[1] == self._best_l1_ratio
+        ]
 
     def get_enetParam_matrices(self):
         """
@@ -689,7 +688,7 @@ class RENT_Base(ABC):
                 variables = list(self._sel_var)
                 variables.extend([-2,-1])
         else:
-            
+
             if problem == "regression":
                 dat = pd.merge(self._data, self._incorrect_labels.iloc[:,-1], \
                                          left_index=True, right_index=True)
@@ -704,17 +703,13 @@ class RENT_Base(ABC):
                 variables = list(self._sel_var)
                 variables.extend([-1])
 
-        if cl == 'both' or cl == 'continuous':
-            if sel_vars == True:
+        if sel_vars == True:
+            if cl in ['both', 'continuous']:
                 data = dat.iloc[:,variables]
             else:
-                data = dat
-        else:
-            if sel_vars == True:
                 data = dat.iloc[np.where(dat.iloc[:,-2]==cl)[0],variables]
-            else:
-                data = dat
-                
+        else:
+            data = dat
         if cl != 'continuous':
             data = data.sort_values(by='% incorrect')
             pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-2].values, \
@@ -722,7 +717,7 @@ class RENT_Base(ABC):
         else:
             pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-1].values, \
                                        Xstand=True, cvType=['loo'])
-        
+
         scores = pd.DataFrame(pca_model.X_scores())
         scores.index = list(data.index)
         scores.columns = ['PC{0}'.format(x+1) for x in \
@@ -753,7 +748,7 @@ class RENT_Base(ABC):
             extraX = xMax * .4
             limX = xMax * .3
 
-        elif abs(xMax) < abs(xMin):
+        else:
             extraX = abs(xMin) * .4
             limX = abs(xMin) * .3
 
@@ -761,12 +756,14 @@ class RENT_Base(ABC):
             extraY = yMax * .4
             limY = yMax * .3
 
-        elif abs(yMax) < abs(yMin):
+        else:
             extraY = abs(yMin) * .4
             limY = abs(yMin) * .3
 
-        xMaxLine = xMax + extraX; xMinLine = xMin - extraX
-        yMaxLine = yMax + extraY; yMinLine = yMin - extraY
+        xMaxLine = xMax + extraX
+        xMinLine = xMin - extraX
+        yMaxLine = yMax + extraY
+        yMinLine = yMin - extraY
 
         ax.plot([0, 0], [yMaxLine, yMinLine], color='0.4', linestyle='dashed',
                 linewidth=3)
@@ -774,9 +771,12 @@ class RENT_Base(ABC):
                 linewidth=3)
 
         # Set limits for plot regions.
-        xMaxLim = xMax + limX; xMinLim = xMin - limX
-        yMaxLim = yMax + limY; yMinLim = yMin - limY
-        ax.set_xlim(xMinLim, xMaxLim); ax.set_ylim(yMinLim, yMaxLim)
+        xMaxLim = xMax + limX
+        xMinLim = xMin - limX
+        yMaxLim = yMax + limY
+        yMinLim = yMin - limY
+        ax.set_xlim(xMinLim, xMaxLim)
+        ax.set_ylim(yMinLim, yMaxLim)
 
         # plot
         if cl == 0:
@@ -1073,6 +1073,13 @@ class RENT_Classification(RENT_Base):
     <class>
         A class that contains the RENT classification model.
     """
+    __slots__=["_data", "_target", "_feat_names", "_C", "_l1_ratios", "_autoEnetParSel",
+               "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
+               "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
+               "_best_l1_ratio", "_indices", "_runtime", "_scores_df", "_combination", 
+               "_zeros", "_perc", "_self_var", "_scores_df_cv", "_zeros_df_cv",
+               "_combination_cv", "_scoring","_classifier", "_predictions_dict","_probas",
+               "_pred_proba_dict", "_random_testsizes", "_weight_dict", "_weight_list", "_score_list"]
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
                  autoEnetParSel=True, BIC=False, poly='OFF',
@@ -1143,8 +1150,8 @@ class RENT_Classification(RENT_Base):
             l1: current l1 ratio in the parallelization framework.
             """
             for reg in C:
-                scores = list()
-                zeros = list()
+                scores = []
+                zeros = []
                 for train, test in skf.split(self._data, self._target):
                     if self._scale == True:
                         sc = StandardScaler()
@@ -1307,7 +1314,7 @@ class RENT_Classification(RENT_Base):
         for C in self._C:
             for l1 in self._l1_ratios:
                 
-                if self._random_state == None:
+                if self._random_state is None:
                     X_train, X_test, y_train, y_test = train_test_split(
                           self._data, self._target,
                           test_size=self._random_testsizes[K],
@@ -1395,7 +1402,7 @@ class RENT_Classification(RENT_Base):
                 count =  0
                 vec = pd.DataFrame(np.nan, index= self._indices, \
                                 columns = ['remove'])
-                for k in self._probas.keys():
+                for k in self._probas:
 
                     if k[0] == C and k[1] == l1:
                         vec.loc[self._probas[k].index,count] = \
@@ -1432,15 +1439,14 @@ class RENT_Classification(RENT_Base):
                                       (0, np.shape(self._data)[0])})
         self._incorrect_labels.index=self._indices.copy()
 
-        specific_predictions = []
-        for K in range(self._K):
-            specific_predictions.append(
-                self._predictions_dict[(self._best_C, self._best_l1_ratio, K)])
-        for dataframe in range(len(specific_predictions)):
-            for count, tup in enumerate(
-                    zip(specific_predictions[dataframe].y_test, \
-                        specific_predictions[dataframe].y_pred)):
-                ind = specific_predictions[dataframe].index[count]
+        specific_predictions = [
+            self._predictions_dict[(self._best_C, self._best_l1_ratio, K)]
+            for K in range(self._K)
+        ]
+
+        for specific_prediction in specific_predictions:
+            for count, tup in enumerate(zip(specific_prediction.y_test, specific_prediction.y_pred)):
+                ind = specific_prediction.index[count]
 
                 # Upgrade ind by one if used as test object
                 self._incorrect_labels.loc[ind,'# test'] += 1
@@ -1471,17 +1477,15 @@ class RENT_Classification(RENT_Base):
         if not hasattr(self, '_pred_proba_dict'):
             sys.exit('Run train() first!')
 
-        # predicted probabilities only if Logreg
         if self._classifier != 'logreg':
             return warnings.warn('Classifier must be "logreg"!')
-        else:
-            self._pp_data = self._pred_proba_dict[
-                (self._best_C, self._best_l1_ratio)].copy()
+        self._pp_data = self._pred_proba_dict[
+            (self._best_C, self._best_l1_ratio)].copy()
 
-            self._pp_data.columns = ['mod {0}'.format(x+1) \
-                                        for x in range(
-                                                self._pp_data.shape[1])]
-            return self._pp_data
+        self._pp_data.columns = ['mod {0}'.format(x+1) \
+                                    for x in range(
+                                            self._pp_data.shape[1])]
+        return self._pp_data
 
     def plot_object_probabilities(self, object_id, binning='auto', lower=0,
                                   upper=1, kde=False, norm_hist=False):
@@ -1507,7 +1511,7 @@ class RENT_Classification(RENT_Base):
         
         if not hasattr(self, '_best_C'):
             sys.exit('Run train() first!')
-            
+
         target_objects = pd.DataFrame(self._target)
         target_objects.index = self._pred_proba_dict[self._best_C, \
                               self._best_l1_ratio].index
@@ -1538,10 +1542,9 @@ class RENT_Classification(RENT_Base):
 
             if norm_hist == False:
                 ax.set_ylabel('absolute frequencies', fontsize=10)
-                ax.set_xlabel('ProbC1', fontsize=10)
             else:
                 ax.set_ylabel('frequencies', fontsize=10)
-                ax.set_xlabel('ProbC1', fontsize=10)
+            ax.set_xlabel('ProbC1', fontsize=10)
             ax.set_title('Object: {0}, True class: {1}'.format(obj, \
                          target_objects.loc[obj,:].values[0]), fontsize=10)
                 
@@ -1579,8 +1582,9 @@ class RENT_Classification(RENT_Base):
         for K in range(num_drawings):
             # Randomly select features (# features = # RENT features selected)
             columns = np.random.RandomState(seed=K).choice(
-                range(0,len(self._data.columns)),
-                                    len(self._sel_var))
+                range(len(self._data.columns)), len(self._sel_var)
+            )
+
             if self._scale == True:
                 sc = StandardScaler()
                 train_VS1 = sc.fit_transform(self._data.iloc[:, columns])
@@ -1588,7 +1592,7 @@ class RENT_Classification(RENT_Base):
             elif self._scale == False:
                 train_VS1 = self._data.iloc[:, columns].values
                 test_VS1 = test_data.iloc[:, columns].values
-            
+
             if self._classifier == 'logreg':
                 model = LogisticRegression(penalty='none', max_iter=8000,
                                             solver="saga", 
@@ -1605,7 +1609,7 @@ class RENT_Classification(RENT_Base):
             elif metric == 'acc':
                 VS1.append(accuracy_score(test_labels, \
                                                     model.predict(test_VS1)))
-        
+
         # VS2
         sc = StandardScaler()
         test_data.columns = self._data.columns
@@ -1638,7 +1642,7 @@ class RENT_Classification(RENT_Base):
                 VS2.append(accuracy_score(
                         np.random.RandomState(seed=K).permutation(test_labels),\
                         model.predict(test_VS2)))
-                
+
         return score, VS1, VS2
                     
                     
@@ -1706,6 +1710,14 @@ class RENT_Regression(RENT_Base):
     <class>
         A class that contains the RENT regression model.
     """
+    __slots__ =["_data", "_target", "_feat_names", "_C", "_l1_ratios", "_autoEnetParSel",
+               "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
+               "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
+               "_best_l1_ratio", "_indices", "_runtime", "_scores_df", "_combination", 
+               "_zeros", "_perc", "_self_var", "_scores_df_cv", "_zeros_df_cv", "_combination_cv", 
+               "_predictions_abs_errors", "_random_testsizes", "_weight_dict", "_weight_list", 
+               "_score_list", "_histogram_data"]
+
 
     def __init__(self, data, target, feat_names=[], 
                  C=[1,10], l1_ratios = [0.6], autoEnetParSel=True, BIC=False,
@@ -1760,8 +1772,8 @@ class RENT_Regression(RENT_Base):
             l1: current l1 ratio in the parallelization framework.
             """
             for reg in C:
-                scores = list()
-                zeros = list()
+                scores = []
+                zeros = []
                 for train, test in skf.split(self._data, self._target):
                     # Find those parameters that are 0
                     if self._scale == True:
@@ -1929,7 +1941,7 @@ class RENT_Regression(RENT_Base):
             # Loop through requested number of tt splits
             for l1 in self._l1_ratios:
                 
-                if self._random_state == None:
+                if self._random_state is None:
                     X_train, X_test, y_train, y_test = train_test_split(
                               self._data, self._target,
                               test_size=self._random_testsizes[K],
@@ -2002,10 +2014,8 @@ class RENT_Regression(RENT_Base):
                                       (0, np.shape(self._data)[0])})
         self._incorrect_labels.index=self._indices.copy()
 
-        specific_predictions = []
-        for K in range(self._K):
-            specific_predictions.append(self._predictions_abs_errors[
-                (self._best_C, self._best_l1_ratio, K)])
+        specific_predictions = [self._predictions_abs_errors[
+                (self._best_C, self._best_l1_ratio, K)] for K in range(self._K)]
         self._histogram_data = pd.concat(specific_predictions, axis=1)
         self._histogram_data.columns = ['mod {0}'.format(x+1) \
                                         for x in range(
@@ -2088,10 +2098,9 @@ class RENT_Regression(RENT_Base):
 
             if norm_hist == False:
                 ax.set_ylabel('absolute frequencies', fontsize=10)
-                ax.set_xlabel('Absolute Error', fontsize=10)
             else:
                 ax.set_ylabel('frequencies', fontsize=10)
-                ax.set_xlabel('Absolute Error', fontsize=10)
+            ax.set_xlabel('Absolute Error', fontsize=10)
             ax.set_title('Object: {0}'.format(obj), fontsize=10)
     
     
@@ -2114,8 +2123,9 @@ class RENT_Regression(RENT_Base):
         for K in range(num_drawings):
             # Randomly select features (# features = # RENT features selected)
             columns = np.random.RandomState(seed=K).choice(
-                range(0,len(self._data.columns)),
-                                    len(self._sel_var))
+                range(len(self._data.columns)), len(self._sel_var)
+            )
+
             if self._scale == True:
                 sc = StandardScaler()
                 train_VS1 = sc.fit_transform(self._data.iloc[:, columns])
@@ -2126,23 +2136,20 @@ class RENT_Regression(RENT_Base):
 
             model = LinearRegression().fit(train_VS1, self._target)
             VS1.append(r2_score(test_labels, model.predict(test_VS1)))
-        
+
         # VS2
         sc = StandardScaler()
         test_data.columns = self._data.columns
-        VS2 = []
         if self._scale == True:
             train_VS2 = sc.fit_transform(self._data.iloc[:,self._sel_var])
             test_VS2 = sc.transform(test_data.iloc[:, self._sel_var])
         elif self._scale == False:
             train_VS2 = self._data.iloc[:,self._sel_var].values
             test_VS2 = test_data.iloc[:, self._sel_var].values
-        
+
         model = LinearRegression().fit(train_VS2,self._target)
-        for K in range(num_permutations):
-            VS2.append(r2_score(
+        VS2 = [r2_score(
             np.random.RandomState(seed=K).permutation(test_labels),\
-            model.predict(test_VS2)))
-        
+            model.predict(test_VS2)) for K in range(num_permutations)]
         return score, VS1, VS2
     

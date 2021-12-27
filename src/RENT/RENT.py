@@ -2103,10 +2103,9 @@ class RENT_Regression(RENT_Base):
 
             if norm_hist == False:
                 ax.set_ylabel('absolute frequencies', fontsize=10)
-                ax.set_xlabel('Absolute Error', fontsize=10)
             else:
                 ax.set_ylabel('frequencies', fontsize=10)
-                ax.set_xlabel('Absolute Error', fontsize=10)
+            ax.set_xlabel('Absolute Error', fontsize=10)
             ax.set_title('Object: {0}'.format(obj), fontsize=10)
     
     

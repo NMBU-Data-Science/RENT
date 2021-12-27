@@ -360,12 +360,10 @@ class RENT_Base(ABC):
         if not hasattr(self, '_best_C'):
             sys.exit('Run train() first!')
 
-        weight_list = []
         #Loop through all K models
-        for K in range(self._K):
-            weight_list.append(self._weight_dict[(self._best_C,
+        weight_list = [self._weight_dict[(self._best_C,
                                                  self._best_l1_ratio,
-                                                 K)])
+                                                 K)] for K in range(self._K)]
         weight_array = np.vstack(weight_list)
 
         #Compute results based on weights
@@ -389,7 +387,7 @@ class RENT_Base(ABC):
                 (self._summary_df.iloc[1, :] >= tau_2_cutoff) &
                 (self._summary_df.iloc[2, :] >= tau_3_cutoff\
                             ))[0]
-        
+
         #if len(self._sel_var) == 0:
         #    warnings.warn("Attention! Thresholds are too restrictive - no features selected!")
         return self._sel_var
@@ -1320,7 +1318,7 @@ class RENT_Classification(RENT_Base):
         for C in self._C:
             for l1 in self._l1_ratios:
                 
-                if self._random_state == None:
+                if self._random_state is None:
                     X_train, X_test, y_train, y_test = train_test_split(
                           self._data, self._target,
                           test_size=self._random_testsizes[K],
@@ -1949,7 +1947,7 @@ class RENT_Regression(RENT_Base):
             # Loop through requested number of tt splits
             for l1 in self._l1_ratios:
                 
-                if self._random_state == None:
+                if self._random_state is None:
                     X_train, X_test, y_train, y_test = train_test_split(
                               self._data, self._target,
                               test_size=self._random_testsizes[K],

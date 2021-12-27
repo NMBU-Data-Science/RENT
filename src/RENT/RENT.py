@@ -693,7 +693,7 @@ class RENT_Base(ABC):
                 variables = list(self._sel_var)
                 variables.extend([-2,-1])
         else:
-            
+
             if problem == "regression":
                 dat = pd.merge(self._data, self._incorrect_labels.iloc[:,-1], \
                                          left_index=True, right_index=True)
@@ -708,17 +708,13 @@ class RENT_Base(ABC):
                 variables = list(self._sel_var)
                 variables.extend([-1])
 
-        if cl == 'both' or cl == 'continuous':
-            if sel_vars == True:
+        if sel_vars == True:
+            if cl in ['both', 'continuous']:
                 data = dat.iloc[:,variables]
             else:
-                data = dat
-        else:
-            if sel_vars == True:
                 data = dat.iloc[np.where(dat.iloc[:,-2]==cl)[0],variables]
-            else:
-                data = dat
-                
+        else:
+            data = dat
         if cl != 'continuous':
             data = data.sort_values(by='% incorrect')
             pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-2].values, \
@@ -726,7 +722,7 @@ class RENT_Base(ABC):
         else:
             pca_model = ho.nipalsPCA(arrX=data.iloc[:,:-1].values, \
                                        Xstand=True, cvType=['loo'])
-        
+
         scores = pd.DataFrame(pca_model.X_scores())
         scores.index = list(data.index)
         scores.columns = ['PC{0}'.format(x+1) for x in \
@@ -757,7 +753,7 @@ class RENT_Base(ABC):
             extraX = xMax * .4
             limX = xMax * .3
 
-        elif abs(xMax) < abs(xMin):
+        else:
             extraX = abs(xMin) * .4
             limX = abs(xMin) * .3
 
@@ -765,12 +761,14 @@ class RENT_Base(ABC):
             extraY = yMax * .4
             limY = yMax * .3
 
-        elif abs(yMax) < abs(yMin):
+        else:
             extraY = abs(yMin) * .4
             limY = abs(yMin) * .3
 
-        xMaxLine = xMax + extraX; xMinLine = xMin - extraX
-        yMaxLine = yMax + extraY; yMinLine = yMin - extraY
+        xMaxLine = xMax + extraX
+        xMinLine = xMin - extraX
+        yMaxLine = yMax + extraY
+        yMinLine = yMin - extraY
 
         ax.plot([0, 0], [yMaxLine, yMinLine], color='0.4', linestyle='dashed',
                 linewidth=3)
@@ -778,9 +776,12 @@ class RENT_Base(ABC):
                 linewidth=3)
 
         # Set limits for plot regions.
-        xMaxLim = xMax + limX; xMinLim = xMin - limX
-        yMaxLim = yMax + limY; yMinLim = yMin - limY
-        ax.set_xlim(xMinLim, xMaxLim); ax.set_ylim(yMinLim, yMaxLim)
+        xMaxLim = xMax + limX
+        xMinLim = xMin - limX
+        yMaxLim = yMax + limY
+        yMinLim = yMin - limY
+        ax.set_xlim(xMinLim, xMaxLim)
+        ax.set_ylim(yMinLim, yMaxLim)
 
         # plot
         if cl == 0:
@@ -1406,7 +1407,7 @@ class RENT_Classification(RENT_Base):
                 count =  0
                 vec = pd.DataFrame(np.nan, index= self._indices, \
                                 columns = ['remove'])
-                for k in self._probas.keys():
+                for k in self._probas:
 
                     if k[0] == C and k[1] == l1:
                         vec.loc[self._probas[k].index,count] = \
@@ -1481,17 +1482,15 @@ class RENT_Classification(RENT_Base):
         if not hasattr(self, '_pred_proba_dict'):
             sys.exit('Run train() first!')
 
-        # predicted probabilities only if Logreg
         if self._classifier != 'logreg':
             return warnings.warn('Classifier must be "logreg"!')
-        else:
-            self._pp_data = self._pred_proba_dict[
-                (self._best_C, self._best_l1_ratio)].copy()
+        self._pp_data = self._pred_proba_dict[
+            (self._best_C, self._best_l1_ratio)].copy()
 
-            self._pp_data.columns = ['mod {0}'.format(x+1) \
-                                        for x in range(
-                                                self._pp_data.shape[1])]
-            return self._pp_data
+        self._pp_data.columns = ['mod {0}'.format(x+1) \
+                                    for x in range(
+                                            self._pp_data.shape[1])]
+        return self._pp_data
 
     def plot_object_probabilities(self, object_id, binning='auto', lower=0,
                                   upper=1, kde=False, norm_hist=False):

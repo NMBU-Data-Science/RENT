@@ -33,7 +33,7 @@ from scipy.stats import t
 
 class RENT_Base(ABC):
     """
-    The constructor initializes common variables of RENT_Classification and RENT_Regresson.
+    The constructor initializes common variables of RENT_Classification and RENT_Regression.
     Initializations that are specific for classification or regression are described in 
     detail in RENT for binary classification and RENT for regression, respectively.
     

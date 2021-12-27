@@ -142,13 +142,11 @@ class RENT_Base(ABC):
         self._BIC = BIC
         self._random_state = random_state
         self._poly = poly
-        
+
         if isinstance(data, pd.DataFrame):
-            if isinstance(data.index, list):
-                self._indices = data.index
-            else:
+            if not isinstance(data.index, list):
                 data.index = list(data.index)
-                self._indices = data.index
+            self._indices = data.index
         else:
             self._indices = list(range(data.shape[0]))
 
@@ -172,10 +170,7 @@ class RENT_Base(ABC):
             polynom_feat_names = []
             # Construct a new name for squares and interactions
             for item in polynom_comb:
-                if item[0] == item[1]:
-                    name = item[0] + '^2'
-                else:
-                    name = item[0] + '*' + item[1]
+                name = item[0] + '^2' if item[0] == item[1] else item[0] + '*' + item[1]
                 polynom_feat_names.append(name)
 
             flist = list(self._feat_names)
@@ -212,7 +207,7 @@ class RENT_Base(ABC):
 
         else:
             sys.exit('Value for paramter "poly" not regcognised.')
-        
+
 
         if self._autoEnetParSel == True:
             if self._BIC == False:
@@ -1516,7 +1511,7 @@ class RENT_Classification(RENT_Base):
         
         if not hasattr(self, '_best_C'):
             sys.exit('Run train() first!')
-            
+
         target_objects = pd.DataFrame(self._target)
         target_objects.index = self._pred_proba_dict[self._best_C, \
                               self._best_l1_ratio].index
@@ -1547,10 +1542,9 @@ class RENT_Classification(RENT_Base):
 
             if norm_hist == False:
                 ax.set_ylabel('absolute frequencies', fontsize=10)
-                ax.set_xlabel('ProbC1', fontsize=10)
             else:
                 ax.set_ylabel('frequencies', fontsize=10)
-                ax.set_xlabel('ProbC1', fontsize=10)
+            ax.set_xlabel('ProbC1', fontsize=10)
             ax.set_title('Object: {0}, True class: {1}'.format(obj, \
                          target_objects.loc[obj,:].values[0]), fontsize=10)
                 
@@ -1588,8 +1582,9 @@ class RENT_Classification(RENT_Base):
         for K in range(num_drawings):
             # Randomly select features (# features = # RENT features selected)
             columns = np.random.RandomState(seed=K).choice(
-                range(0,len(self._data.columns)),
-                                    len(self._sel_var))
+                range(len(self._data.columns)), len(self._sel_var)
+            )
+
             if self._scale == True:
                 sc = StandardScaler()
                 train_VS1 = sc.fit_transform(self._data.iloc[:, columns])
@@ -1597,7 +1592,7 @@ class RENT_Classification(RENT_Base):
             elif self._scale == False:
                 train_VS1 = self._data.iloc[:, columns].values
                 test_VS1 = test_data.iloc[:, columns].values
-            
+
             if self._classifier == 'logreg':
                 model = LogisticRegression(penalty='none', max_iter=8000,
                                             solver="saga", 
@@ -1614,7 +1609,7 @@ class RENT_Classification(RENT_Base):
             elif metric == 'acc':
                 VS1.append(accuracy_score(test_labels, \
                                                     model.predict(test_VS1)))
-        
+
         # VS2
         sc = StandardScaler()
         test_data.columns = self._data.columns
@@ -1647,7 +1642,7 @@ class RENT_Classification(RENT_Base):
                 VS2.append(accuracy_score(
                         np.random.RandomState(seed=K).permutation(test_labels),\
                         model.predict(test_VS2)))
-                
+
         return score, VS1, VS2
                     
                     

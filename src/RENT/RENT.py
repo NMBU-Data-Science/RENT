@@ -490,11 +490,11 @@ class RENT_Base(ABC):
         <list>
             Scores list.
         """
-        scores_list = []
-        for k in self._score_dict.keys():
-            if k[0] == self._best_C and k[1] == self._best_l1_ratio:
-                scores_list.append(self._score_dict[k])
-        return scores_list
+        return [
+            self._score_dict[k]
+            for k in self._score_dict.keys()
+            if k[0] == self._best_C and k[1] == self._best_l1_ratio
+        ]
 
     def get_enetParam_matrices(self):
         """
@@ -1156,8 +1156,8 @@ class RENT_Classification(RENT_Base):
             l1: current l1 ratio in the parallelization framework.
             """
             for reg in C:
-                scores = list()
-                zeros = list()
+                scores = []
+                zeros = []
                 for train, test in skf.split(self._data, self._target):
                     if self._scale == True:
                         sc = StandardScaler()
@@ -1445,15 +1445,14 @@ class RENT_Classification(RENT_Base):
                                       (0, np.shape(self._data)[0])})
         self._incorrect_labels.index=self._indices.copy()
 
-        specific_predictions = []
-        for K in range(self._K):
-            specific_predictions.append(
-                self._predictions_dict[(self._best_C, self._best_l1_ratio, K)])
-        for dataframe in range(len(specific_predictions)):
-            for count, tup in enumerate(
-                    zip(specific_predictions[dataframe].y_test, \
-                        specific_predictions[dataframe].y_pred)):
-                ind = specific_predictions[dataframe].index[count]
+        specific_predictions = [
+            self._predictions_dict[(self._best_C, self._best_l1_ratio, K)]
+            for K in range(self._K)
+        ]
+
+        for specific_prediction in specific_predictions:
+            for count, tup in enumerate(zip(specific_prediction.y_test, specific_prediction.y_pred)):
+                ind = specific_prediction.index[count]
 
                 # Upgrade ind by one if used as test object
                 self._incorrect_labels.loc[ind,'# test'] += 1
@@ -1781,8 +1780,8 @@ class RENT_Regression(RENT_Base):
             l1: current l1 ratio in the parallelization framework.
             """
             for reg in C:
-                scores = list()
-                zeros = list()
+                scores = []
+                zeros = []
                 for train, test in skf.split(self._data, self._target):
                     # Find those parameters that are 0
                     if self._scale == True:
@@ -2023,10 +2022,8 @@ class RENT_Regression(RENT_Base):
                                       (0, np.shape(self._data)[0])})
         self._incorrect_labels.index=self._indices.copy()
 
-        specific_predictions = []
-        for K in range(self._K):
-            specific_predictions.append(self._predictions_abs_errors[
-                (self._best_C, self._best_l1_ratio, K)])
+        specific_predictions = [self._predictions_abs_errors[
+                (self._best_C, self._best_l1_ratio, K)] for K in range(self._K)]
         self._histogram_data = pd.concat(specific_predictions, axis=1)
         self._histogram_data.columns = ['mod {0}'.format(x+1) \
                                         for x in range(

@@ -88,6 +88,12 @@ class RENT_Base(ABC):
         Track the train process if value > 1. If ``verbose = 1``, only the overview
         of RENT input will be shown. Default: ``verbose=0``.
     """
+    __slots__=["_data", "_target", "_feat_names", "_C", "_l1_ratios", "_autoEnetParSel",
+               "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
+               "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
+               "_best_l1_ratio", "_indices", "_runtime", "_scores_df", "_combination", 
+               "_zeros", "_perc", "_self_var", "_X_test", "_zeros_df","_sel_var",
+               "_incorrect_labels", "_pp_data"]
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
                  autoEnetParSel=True, BIC=False, poly='OFF',testsize_range=(0.2, 0.6), 
@@ -1073,6 +1079,13 @@ class RENT_Classification(RENT_Base):
     <class>
         A class that contains the RENT classification model.
     """
+    __slots__=["_data", "_target", "_feat_names", "_C", "_l1_ratios", "_autoEnetParSel",
+               "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
+               "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
+               "_best_l1_ratio", "_indices", "_runtime", "_scores_df", "_combination", 
+               "_zeros", "_perc", "_self_var", "_scores_df_cv", "_zeros_df_cv",
+               "_combination_cv", "_scoring","_classifier", "_predictions_dict","_probas",
+               "_pred_proba_dict", "_random_testsizes", "_weight_dict", "_weight_list", "_score_list"]
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
                  autoEnetParSel=True, BIC=False, poly='OFF',
@@ -1706,6 +1719,14 @@ class RENT_Regression(RENT_Base):
     <class>
         A class that contains the RENT regression model.
     """
+    __slots__ =["_data", "_target", "_feat_names", "_C", "_l1_ratios", "_autoEnetParSel",
+               "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
+               "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
+               "_best_l1_ratio", "_indices", "_runtime", "_scores_df", "_combination", 
+               "_zeros", "_perc", "_self_var", "_scores_df_cv", "_zeros_df_cv", "_combination_cv", 
+               "_predictions_abs_errors", "_random_testsizes", "_weight_dict", "_weight_list", 
+               "_score_list", "_histogram_data"]
+
 
     def __init__(self, data, target, feat_names=[], 
                  C=[1,10], l1_ratios = [0.6], autoEnetParSel=True, BIC=False,
@@ -2114,8 +2135,9 @@ class RENT_Regression(RENT_Base):
         for K in range(num_drawings):
             # Randomly select features (# features = # RENT features selected)
             columns = np.random.RandomState(seed=K).choice(
-                range(0,len(self._data.columns)),
-                                    len(self._sel_var))
+                range(len(self._data.columns)), len(self._sel_var)
+            )
+
             if self._scale == True:
                 sc = StandardScaler()
                 train_VS1 = sc.fit_transform(self._data.iloc[:, columns])
@@ -2126,23 +2148,20 @@ class RENT_Regression(RENT_Base):
 
             model = LinearRegression().fit(train_VS1, self._target)
             VS1.append(r2_score(test_labels, model.predict(test_VS1)))
-        
+
         # VS2
         sc = StandardScaler()
         test_data.columns = self._data.columns
-        VS2 = []
         if self._scale == True:
             train_VS2 = sc.fit_transform(self._data.iloc[:,self._sel_var])
             test_VS2 = sc.transform(test_data.iloc[:, self._sel_var])
         elif self._scale == False:
             train_VS2 = self._data.iloc[:,self._sel_var].values
             test_VS2 = test_data.iloc[:, self._sel_var].values
-        
+
         model = LinearRegression().fit(train_VS2,self._target)
-        for K in range(num_permutations):
-            VS2.append(r2_score(
+        VS2 = [r2_score(
             np.random.RandomState(seed=K).permutation(test_labels),\
-            model.predict(test_VS2)))
-        
+            model.predict(test_VS2)) for K in range(num_permutations)]
         return score, VS1, VS2
     

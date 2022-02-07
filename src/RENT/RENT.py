@@ -91,7 +91,7 @@ class RENT_Base(ABC):
     __slots__=["_data", "_target", "_feat_names", "_C", "_l1_ratios", "_autoEnetParSel",
                "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
                "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
-               "_best_l1_ratio", "_indices", "_runtime", "_scores_df", "_combination", 
+               "_best_l1_ratio", "_indices", "_polynom", "_runtime", "_scores_df", "_combination", 
                "_zeros", "_perc", "_self_var", "_X_test", "_zeros_df","_sel_var",
                "_incorrect_labels", "_pp_data"]
 
@@ -1076,7 +1076,7 @@ class RENT_Classification(RENT_Base):
     __slots__=["_data", "_target", "_feat_names", "_C", "_l1_ratios", "_autoEnetParSel",
                "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
                "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
-               "_best_l1_ratio", "_indices", "_runtime", "_scores_df", "_combination", 
+               "_best_l1_ratio", "_indices", "_polynom", "_runtime", "_scores_df", "_combination", 
                "_zeros", "_perc", "_self_var", "_scores_df_cv", "_zeros_df_cv",
                "_combination_cv", "_scoring","_classifier", "_predictions_dict","_probas",
                "_pred_proba_dict", "_random_testsizes", "_weight_dict", "_weight_list", "_score_list"]
@@ -1713,7 +1713,7 @@ class RENT_Regression(RENT_Base):
     __slots__ =["_data", "_target", "_feat_names", "_C", "_l1_ratios", "_autoEnetParSel",
                "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
                "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
-               "_best_l1_ratio", "_indices", "_runtime", "_scores_df", "_combination", 
+               "_best_l1_ratio", "_indices", "_polynom", "_runtime", "_scores_df", "_combination", 
                "_zeros", "_perc", "_self_var", "_scores_df_cv", "_zeros_df_cv", "_combination_cv", 
                "_predictions_abs_errors", "_random_testsizes", "_weight_dict", "_weight_list", 
                "_score_list", "_histogram_data"]

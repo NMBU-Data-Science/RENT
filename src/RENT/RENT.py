@@ -92,7 +92,7 @@ class RENT_Base(ABC):
                "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
                "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
                "_best_l1_ratio", "_indices", "_polynom", "_runtime", "_scores_df", "_combination", 
-               "_zeros", "_perc", "_self_var", "_X_test", "_zeros_df","_sel_var",
+               "_zeros", "_perc", "_self_var", "_X_test", "_test_data", "_zeros_df","_sel_var",
                "_incorrect_labels", "_pp_data"]
 
     def __init__(self, data, target, feat_names=[], C=[1,10], l1_ratios = [0.6],
@@ -1003,7 +1003,23 @@ class RENT_Base(ABC):
         """
         return (arr-np.nanmin(arr)) / (np.nanmax(arr)-np.nanmin(arr))
 
-
+    def _poly_transform_testdata(self, test_data):
+        """
+        Generate polynomial features for a test dataset.
+        
+        PARAMETERS
+        ----------
+        <numpy array> or <pandas DataFrame>
+            ``arr``: Array or DataFrame of numeric values.
+            
+        RETURNS
+        -------
+        <pandas DataFrame>
+            Transformed test dataset.
+        """
+        return pd.DataFrame(self._polynom.fit_transform(test_data), columns = self._data.columns)
+        
+        
 class RENT_Classification(RENT_Base):
     """
     This class carries out RENT on a given binary classification dataset. 
@@ -1077,7 +1093,7 @@ class RENT_Classification(RENT_Base):
                "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
                "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
                "_best_l1_ratio", "_indices", "_polynom", "_runtime", "_scores_df", "_combination", 
-               "_zeros", "_perc", "_self_var", "_scores_df_cv", "_zeros_df_cv",
+               "_zeros", "_perc", "_self_var", "_scores_df_cv", "_zeros_df_cv", "_test_data",
                "_combination_cv", "_scoring","_classifier", "_predictions_dict","_probas",
                "_pred_proba_dict", "_random_testsizes", "_weight_dict", "_weight_list", "_score_list"]
 
@@ -1712,7 +1728,7 @@ class RENT_Regression(RENT_Base):
     """
     __slots__ =["_data", "_target", "_feat_names", "_C", "_l1_ratios", "_autoEnetParSel",
                "_BIC", "_poly", "_testsize_range", "_K", "_scale", "_random_state",
-               "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C",
+               "_verbose", "_summary_df", "_score_dict", "_BIC_df", "_best_C", "_test_data", "test_coef",
                "_best_l1_ratio", "_indices", "_polynom", "_runtime", "_scores_df", "_combination", 
                "_zeros", "_perc", "_self_var", "_scores_df_cv", "_zeros_df_cv", "_combination_cv", 
                "_predictions_abs_errors", "_random_testsizes", "_weight_dict", "_weight_list", 
